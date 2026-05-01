@@ -115,12 +115,84 @@ module pattern_gen (
                        (block_y[i] <= HIT_Y_END)) begin
                         
                         block_visible[i]     <= 1'b0;  // Прячем пойманный блок
-                        flash[block_lane[i]] <= 5'd15; // Запускаем зеленую вспышку
+                        flash[block_lane[i]] <= 5'd31; 
                     end
                 end
             end
         end
     end
+	 
+	 logic [7:0] bloom_out;
+	 always_comb begin
+        bloom_out = 8'h00;
+        
+        for (int i = 0; i < 4; i++) begin
+            // Если в этой колонке активна вспышка и текущий X в этой колонке
+            if (flash[i] > 0 && in_rec_x[i]) begin
+                
+                // Проверяем, что мы выше нижней границы хит-зоны
+                if (y <= HIT_Y_END) begin
+                    int intensity;
+                    int base_val;
+                    int dist_y;
+                    
+                    // 1. Базовая яркость от таймера (от 0 до 248)
+                    base_val = int'(flash[i]) * 8;
+                    
+                    // 2. Расстояние вверх от хит-зоны
+                    // В самой хит-зоне (y около 410) dist_y будет около 0.
+                    // На самом верху экрана (y = 0) dist_y будет около 410.
+                    dist_y = int'(HIT_Y_END) - int'(y);
+                    
+                    // 3. Формула столба:
+                    // Берем базовую яркость и вычитаем дистанцию по Y.
+                    // Коэффициент перед dist_y (например, 1 или 2) определяет высоту столба.
+                    // Если (dist_y * 1) -> столб высокий (на весь экран).
+                    // Если (dist_y * 3) -> столб короткий (быстро тускнеет вверх).
+                    intensity = base_val - (dist_y * 2); 
+                    
+                    if (intensity > 0) begin
+                        // Сложение с насыщением
+                        if (int'(bloom_out) + intensity > 255) bloom_out = 8'hFF;
+                        else bloom_out = bloom_out + intensity[7:0];
+                    end
+                end
+            end
+        end
+    end
+//	 always_comb begin
+//        bloom_out = 8'h00;
+//        
+//        for (int i = 0; i < 4; i++) begin
+//            if (flash[i] > 0) begin
+//					 int centerX, centerY;
+//                int dx, dy, distance, intensity; 
+//                // Центр колонки по X
+//                centerX = 215 + (i * 53) + 26;
+//                // Центр хит-зоны по Y
+//                centerY = (HIT_Y_START + HIT_Y_END) / 2;
+//                
+//                // Считаем примерное расстояние (Манхэттенское расстояние для экономии ресурсов)
+//                // dist = |dx| + |dy|
+//                dx = (x > centerX) ? (x - centerX) : (centerX - x);
+//                dy = (y > centerY) ? (y - centerY) : (centerY - y);
+//					 
+//                distance  = dx + dy;
+//
+//                // Вычисляем яркость в этой точке:
+//                // Базовая яркость зависит от таймера (flash * 8)
+//                // И уменьшается с расстоянием (dist * 2)
+//                intensity = (flash[i] * 10) - (distance  * 4);
+//                
+//                if (intensity > 0) begin
+//                    // Если интенсивность положительная, добавляем её к результату
+//                    // Используем сложение с насыщением (чтобы не превысить 255)
+//                    if (bloom_out + intensity > 255) bloom_out = 8'hFF;
+//                    else bloom_out = bloom_out + intensity[7:0];
+//                end
+//            end
+//        end
+//    end
 
     // ==========================================
     // 3. ЛОГИКА ОТРИСОВКИ СЛОЕВ (ГРАФИКА)
@@ -191,31 +263,55 @@ module pattern_gen (
 		  
 		      if (draw_line_left || draw_line_right)
                 rgb_out = 24'hFFFFFF; // white line of borders
+					 
+				else if (bloom_out > 200) begin 
+                // В самом центре вспышка почти белая
+                rgb_out = 24'hFFFFFF;
+            end
 
             else if (draw_block_any)
                 rgb_out = 24'hFF3333; //blocks
 					 
-				//hit zone
-				else if (in_hit_zone_y && in_rec_x[0] && flash[0] > 0) rgb_out = 24'h33FF33;
-            else if (in_hit_zone_y && in_rec_x[1] && flash[1] > 0) rgb_out = 24'h33FF33;
-            else if (in_hit_zone_y && in_rec_x[2] && flash[2] > 0) rgb_out = 24'h33FF33;
-            else if (in_hit_zone_y && in_rec_x[3] && flash[3] > 0) rgb_out = 24'h33FF33;
+				else begin
+                logic [7:0] base_r, base_g, base_b;
                 
+                // Определяем базовый цвет пикселя (кнопки, хит-зона или фон)
+                if (fill_rec_0) {base_r, base_g, base_b} = keys[0] ? 24'hFFFFFF : 24'hFF8800;
+                else if (fill_rec_1) {base_r, base_g, base_b} = keys[1] ? 24'hFFFFFF : 24'hFF8800;
+                else if (fill_rec_2) {base_r, base_g, base_b} = keys[2] ? 24'hFFFFFF : 24'hFF8800;
+                else if (fill_rec_3) {base_r, base_g, base_b} = keys[3] ? 24'hFFFFFF : 24'hFF8800;
+                else if (in_hit_zone_y && draw_zone) {base_r, base_g, base_b} = 24'h445566;
+                else if (draw_zone) {base_r, base_g, base_b} = 24'h222222;
+                else {base_r, base_g, base_b} = 24'h000000;
+
+                // ДОБАВЛЯЕМ СВЕЧЕНИЕ К БАЗОВОМУ ЦВЕТУ
+                // Это создает эффект "освещения" фоновых объектов вспышкой
+                rgb_out[23:16] = (base_r + bloom_out > 255) ? 8'hFF : base_r + bloom_out;
+                rgb_out[15:8]  = (base_g + bloom_out > 255) ? 8'hFF : base_g + bloom_out;
+                rgb_out[7:0]   = (base_b + bloom_out > 255) ? 8'hFF : base_b + bloom_out;
+            end
 					 
-            else if (in_hit_zone_y && draw_zone) 
-                rgb_out = 24'h445566; 
-				
-				else if (fill_rec_0) rgb_out = keys[0] ? 24'hFFFFFF : 24'hFF8800; // FF8800 = orange
-            else if (fill_rec_1) rgb_out = keys[1] ? 24'hFFFFFF : 24'hFF8800;
-            else if (fill_rec_2) rgb_out = keys[2] ? 24'hFFFFFF : 24'hFF8800;
-            else if (fill_rec_3) rgb_out = keys[3] ? 24'hFFFFFF : 24'hFF8800;
- 
-                
-            else if (draw_zone)
-                rgb_out = 24'h222222; //  main background
-                
-            else
-                rgb_out = 24'h000000; 
+				//hit zone
+//				else if (in_hit_zone_y && in_rec_x[0] && flash[0] > 0) rgb_out = 24'h33FF33;
+//            else if (in_hit_zone_y && in_rec_x[1] && flash[1] > 0) rgb_out = 24'h33FF33;
+//            else if (in_hit_zone_y && in_rec_x[2] && flash[2] > 0) rgb_out = 24'h33FF33;
+//            else if (in_hit_zone_y && in_rec_x[3] && flash[3] > 0) rgb_out = 24'h33FF33;
+//                
+//					 
+//            else if (in_hit_zone_y && draw_zone) 
+//                rgb_out = 24'h445566; 
+//				
+//				else if (fill_rec_0) rgb_out = keys[0] ? 24'hFFFFFF : 24'hFF8800; // FF8800 = orange
+//            else if (fill_rec_1) rgb_out = keys[1] ? 24'hFFFFFF : 24'hFF8800;
+//            else if (fill_rec_2) rgb_out = keys[2] ? 24'hFFFFFF : 24'hFF8800;
+//            else if (fill_rec_3) rgb_out = keys[3] ? 24'hFFFFFF : 24'hFF8800;
+// 
+//                
+//            else if (draw_zone)
+//                rgb_out = 24'h222222; //  main background
+//                
+//            else
+//                rgb_out = 24'h000000; 
         end
     end
     // Разбиваем готовый 24-битный цвет на три 8-битных канала
