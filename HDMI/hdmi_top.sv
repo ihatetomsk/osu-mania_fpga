@@ -1,21 +1,24 @@
 module hdmi_top (
-    input  logic       FPGA_CLK1_50, // 50МГц
-    input  logic [0:0] KEY,          // Кнопка сброса [0]
+    input  logic       FPGA_CLK1_50, // 50РњР“С†
+    input  logic [0:0] KEY,          // РљРЅРѕРїРєР° СЃР±СЂРѕСЃР° [0]
     
-    // I2C для настройки чипа
+    // I2C РґР»СЏ РЅР°СЃС‚СЂРѕР№РєРё С‡РёРїР°
     output logic       HDMI_I2C_SCL,
     inout  wire        HDMI_I2C_SDA,
     
-    // для hdmi
+    // РґР»СЏ hdmi
     output logic       HDMI_TX_CLK,
     output logic       HDMI_TX_HS,
     output logic       HDMI_TX_VS,
     output logic       HDMI_TX_DE,
     output logic [23:0] HDMI_TX_D,
-    output logic [3:0] LED           // светодиоды для диагностики
+    output logic [3:0] LED ,          // СЃРІРµС‚РѕРґРёРѕРґС‹ РґР»СЏ РґРёР°РіРЅРѕСЃС‚РёРєРё
+
+    input  logic[3:0] BTN //buttons users game control
 );
 
-    // сигнали внутренние
+
+    // СЃРёРіРЅР°Р»Рё РІРЅСѓС‚СЂРµРЅРЅРёРµ
     logic clk_25;
     logic pll_locked;
     logic ready;
@@ -23,12 +26,16 @@ module hdmi_top (
     
     assign rst = ~KEY[0];
 
-    // диагонстика через светодиоды
-    assign LED[0] = pll_locked;   // Горит, если PLL работает
-    assign LED[1] = ready;        // Горит, если чип HDMI настроен по I2C
-    assign LED[3:2] = 2'b00;      // Остальные выключаем
+	 //conveniant work with integral buttons
+    logic [3:0] keys_active;
+    assign keys_active = ~BTN; 
 
-    // из 50МГц делаем 25.177МГц
+    // РґРёР°РіРѕРЅСЃС‚РёРєР° С‡РµСЂРµР· СЃРІРµС‚РѕРґРёРѕРґС‹
+    assign LED[0] = pll_locked;   // Р“РѕСЂРёС‚, РµСЃР»Рё PLL СЂР°Р±РѕС‚Р°РµС‚
+    assign LED[1] = ready;        // Р“РѕСЂРёС‚, РµСЃР»Рё С‡РёРї HDMI РЅР°СЃС‚СЂРѕРµРЅ РїРѕ I2C
+    assign LED[3:2] = 2'b00;      // РћСЃС‚Р°Р»СЊРЅС‹Рµ РІС‹РєР»СЋС‡Р°РµРј
+
+    // РёР· 50РњР“С† РґРµР»Р°РµРј 25.177РњР“С†
     my_pll pll_inst (
         .refclk   (FPGA_CLK1_50),
         .rst      (rst), 
@@ -36,7 +43,7 @@ module hdmi_top (
         .locked   (pll_locked)   
     );
 
-    // инит adv7513
+    // РёРЅРёС‚ adv7513
     hdmi_config cfg (
         .clk      (FPGA_CLK1_50),
         .rst      (rst),
@@ -45,7 +52,7 @@ module hdmi_top (
         .ready    (ready)        
     );
 
-    // генерация 640x480
+    // РіРµРЅРµСЂР°С†РёСЏ 640x480
     logic [9:0] x, y;
     logic vga_de;
     
@@ -66,11 +73,12 @@ module hdmi_top (
         .x   (x),
         .y   (y),
         .de  (vga_de),
+		  .keys (keys_active),
         .r   (w_red),
         .g   (w_green),
         .b   (w_blue)
     );
-    // генерация трех цветов
+    // РіРµРЅРµСЂР°С†РёСЏ С‚СЂРµС… С†РІРµС‚РѕРІ
 //    always_comb begin
 //        if (vga_de) begin
 //            if (x < 213)      HDMI_TX_D = 24'h000000; 
