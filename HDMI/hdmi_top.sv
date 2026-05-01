@@ -58,19 +58,33 @@ module hdmi_top (
         .y     (y)
     );
 
+	 logic [7:0] w_red, w_green, w_blue;
+	 
+	 pattern_gen game_logic (
+        .clk (clk_25),
+        .rst (rst),
+        .x   (x),
+        .y   (y),
+        .de  (vga_de),
+        .r   (w_red),
+        .g   (w_green),
+        .b   (w_blue)
+    );
     // генерация трех цветов
-    always_comb begin
-        if (vga_de) begin
-            if (x < 213)      HDMI_TX_D = 24'hFF0000; // Красный
-            else if (x < 426) HDMI_TX_D = 24'h00FF00; // Зеленый
-            else              HDMI_TX_D = 24'h0000FF; // Синий
-        end else begin
-            HDMI_TX_D = 24'h000000;
-        end
-    end
+//    always_comb begin
+//        if (vga_de) begin
+//            if (x < 213)      HDMI_TX_D = 24'h000000; 
+//				else if(x>213 & x <= 215) HDMI_TX_D =24'hFFFFFF;
+//            else if (x < 426 && x > 215) HDMI_TX_D = 24'h000000; 
+//				else if(x >=426 & x<428)HDMI_TX_D =24'hFFFFFF;
+//            else              HDMI_TX_D = 24'h000000; 
+//        end else begin
+//            HDMI_TX_D = 24'h000000;
+//        end
+//    end
 
     assign HDMI_TX_DE  = vga_de;
-	 
+	 assign HDMI_TX_D   = {w_red, w_green, w_blue};
     assign HDMI_TX_CLK = ~clk_25; 
 
 endmodule
