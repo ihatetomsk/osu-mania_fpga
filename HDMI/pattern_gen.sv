@@ -11,7 +11,7 @@ module pattern_gen (
 );
 
     // ==========================================
-    // 1. ГЕНЕРАТОР СЛУЧАЙНЫХ ЧИСЕЛ (LFSR)
+    // random number
     // ==========================================
     logic [7:0] lfsr;
     
@@ -24,14 +24,14 @@ module pattern_gen (
     end
 
     // ==========================================
-    // 2. ФИЗИКА И ПОЗИЦИОНИРОВАНИЕ БЛОКА
+    // positions
     // ==========================================
     logic frame_tick;
     // Генерируем короткий импульс 1 раз за кадр (когда луч уходит в невидимую зону)
     assign frame_tick = (x == 10'd639 && y == 10'd479);
 
-    logic [9:0] block_x;
-    logic [9:0] block_y;
+//    logic [9:0] block_x;
+//    logic [9:0] block_y;
 	 
 	 
 	 localparam BLOCK_WIDTH  = 10'd52; 
@@ -39,7 +39,7 @@ module pattern_gen (
 	 
 	 	 //capture zone
 	 localparam HIT_Y_START = 10'd400; 
-    localparam HIT_Y_END   = 10'd414; 
+    localparam HIT_Y_END   = 10'd419; 
 	 
 	 localparam MAX_BLOCKS   = 10; //max quantity of blocks on screen
 	 logic [9:0] block_y[0:MAX_BLOCKS-1]; // hight of every block
@@ -65,6 +65,8 @@ module pattern_gen (
     end
 
 
+	 logic [3:0] keys_pulse;
+	 assign keys_pulse = keys & ~keys_prev;
     always_ff @(posedge clk or posedge rst) begin
         if (rst) begin
 				for (int i=0; i<MAX_BLOCKS; i++) begin
@@ -77,23 +79,45 @@ module pattern_gen (
             keys_prev   <= 4'd0;
             //block_y <= 10'd0;
             //block_x <= 10'd221; // По умолчанию ставим в крайнюю левую полосу
-        end else if (frame_tick) begin
+        end else begin
             // Если блок улетел за нижний край экрана
 				keys_prev <= keys;
-				keys_pulse = keys & ~keys_prev;
-            if (block_y >= 10'd480) begin
-                block_y <= 10'd0; // Возвращаем его на самый верх
-                
-                // Выбираем случайную полосу из 4 возможных на основе 2-х бит LFSR
-                case (lfsr[1:0])
-                    2'd0: block_x <= 10'd215; // Полоса 1
-                    2'd1: block_x <= 10'd268; // Полоса 2
-                    2'd2: block_x <= 10'd321; // Полоса 3
-                    2'd3: block_x <= 10'd374; // Полоса 4
-                endcase
-            end else begin
-                // Блок продолжает падать
-                block_y <= block_y + 10'd4; // Скорость падения (3 пикселя за 1 кадр)
+				
+				if (frame_tick) begin
+					 for(int j=0; j<4; j++) begin
+                    if (flash[j] > 0) flash[j] <= flash[j] - 5'd1;
+                end
+					 spawn_timer <= spawn_timer + 6'd1; //every 2 sec
+					 if (spawn_timer >= 6'd30) begin
+                    spawn_timer <= 0;
+                    if (has_free) begin
+                        block_visible[free_idx] <= 1'b1;
+                        block_y[free_idx]       <= 10'd0;
+                        block_lane[free_idx]    <= lfsr[1:0]; // Случайная колонка
+                    end
+                end
+					 
+					 for (int i=0; i<MAX_BLOCKS; i++) begin
+                    if (block_visible[i]) begin
+                        if (block_y[i] >= 10'd480) 
+                            block_visible[i] <= 1'b0; // Блок улетел за экран (Miss)
+                        else 
+                            block_y[i] <= block_y[i] + 10'd3;
+                    end
+                end
+				end
+					 
+				for (int i=0; i<MAX_BLOCKS; i++) begin
+                if (block_visible[i]) begin
+                    // Если нажата кнопка в колонке блока, и блок внутри зоны захвата
+                    if (keys_pulse[block_lane[i]] && 
+                       (block_y[i] + BLOCK_HEIGHT >= HIT_Y_START) && 
+                       (block_y[i] <= HIT_Y_END)) begin
+                        
+                        block_visible[i]     <= 1'b0;  // Прячем пойманный блок
+                        flash[block_lane[i]] <= 5'd15; // Запускаем зеленую вспышку
+                    end
+                end
             end
         end
     end
@@ -101,17 +125,13 @@ module pattern_gen (
     // ==========================================
     // 3. ЛОГИКА ОТРИСОВКИ СЛОЕВ (ГРАФИКА)
     // ==========================================
-    logic draw_block;
+    logic in_hit_zone_y;
     logic draw_line_left;
     logic draw_line_right;
     logic draw_zone;
     
     logic [23:0] rgb_out; // Внутренний провод для сборки 24-битного цвета
-    
-    // Флаг 1: Текущий пиксель принадлежит падающему блоку
-    assign draw_block = (x >= block_x) && (x < block_x + BLOCK_WIDTH) &&
-                        (y >= block_y) && (y < block_y + BLOCK_HEIGHT);
-                        
+                       
     // Флаг 2: Левая белая разделительная граница (ширина 2 пикселя)
     assign draw_line_left  = (x == 10'd213) || (x == 10'd214);
     
@@ -120,7 +140,30 @@ module pattern_gen (
     
     // Флаг 4: Игровой стакан (пространство между линиями)
     assign draw_zone = (x >= 10'd215) && (x < 10'd426);
+	 
+	 assign in_hit_zone_y   = (y >= HIT_Y_START) && (y <= HIT_Y_END);
 
+	 logic draw_block_any;
+    always_comb begin
+        draw_block_any = 1'b0;
+        for (int i = 0; i < MAX_BLOCKS; i++) begin
+            if (block_visible[i]) begin
+                logic [9:0] bx;
+                case (block_lane[i])
+                    2'd0: bx = 10'd215;
+                    2'd1: bx = 10'd268;
+                    2'd2: bx = 10'd321;
+                    2'd3: bx = 10'd374;
+                endcase
+                
+                if (x >= bx && x < bx + BLOCK_WIDTH &&
+                    y >= block_y[i] && y < block_y[i] + BLOCK_HEIGHT) begin
+                    draw_block_any = 1'b1;
+                end
+            end
+        end
+    end
+	 
 	 //user blocks in bottom
 	 localparam REC_Y_START = 10'd420; 
     localparam REC_Y_END   = 10'd479; 
@@ -140,35 +183,39 @@ module pattern_gen (
     assign fill_rec_3 = in_rec_y && in_rec_x[3];
 	 
 	 
-    // Главный смеситель (Z-index: что поверх чего рисуется)
+    // main draw process
     always_comb begin
         if (!de) begin
-            rgb_out = 24'h000000;     // В служебной зоне (вне экрана) СТРОГО черный цвет!
+            rgb_out = 24'h000000;     
         end else begin
-            if (draw_block)
-                rgb_out = 24'hFF3333; // Слой 1 (Самый верхний): Красный блок
+		  
+		      if (draw_line_left || draw_line_right)
+                rgb_out = 24'hFFFFFF; // white line of borders
+
+            else if (draw_block_any)
+                rgb_out = 24'hFF3333; //blocks
+					 
+				//hit zone
+				else if (in_hit_zone_y && in_rec_x[0] && flash[0] > 0) rgb_out = 24'h33FF33;
+            else if (in_hit_zone_y && in_rec_x[1] && flash[1] > 0) rgb_out = 24'h33FF33;
+            else if (in_hit_zone_y && in_rec_x[2] && flash[2] > 0) rgb_out = 24'h33FF33;
+            else if (in_hit_zone_y && in_rec_x[3] && flash[3] > 0) rgb_out = 24'h33FF33;
                 
-            else if (draw_line_left || draw_line_right)
-                rgb_out = 24'hFFFFFF; // Слой 2: Белые линии границ
+					 
+            else if (in_hit_zone_y && draw_zone) 
+                rgb_out = 24'h445566; 
 				
-				else if (fill_rec_0) begin
-                rgb_out = keys[0] ? 24'hFFFFFF : 24'hFF8800; // FF8800 = Оранжевый
-            end
-            else if (fill_rec_1) begin
-                rgb_out = keys[1] ? 24'hFFFFFF : 24'hFF8800;
-            end
-            else if (fill_rec_2) begin
-                rgb_out = keys[2] ? 24'hFFFFFF : 24'hFF8800;
-            end
-            else if (fill_rec_3) begin
-                rgb_out = keys[3] ? 24'hFFFFFF : 24'hFF8800;
-            end
+				else if (fill_rec_0) rgb_out = keys[0] ? 24'hFFFFFF : 24'hFF8800; // FF8800 = orange
+            else if (fill_rec_1) rgb_out = keys[1] ? 24'hFFFFFF : 24'hFF8800;
+            else if (fill_rec_2) rgb_out = keys[2] ? 24'hFFFFFF : 24'hFF8800;
+            else if (fill_rec_3) rgb_out = keys[3] ? 24'hFFFFFF : 24'hFF8800;
+ 
                 
             else if (draw_zone)
-                rgb_out = 24'h222222; // Слой 3: Темно-серый фон игрового стакана
+                rgb_out = 24'h222222; //  main background
                 
             else
-                rgb_out = 24'h000000; // Слой 4 (Фон): Черный цвет по бокам от стакана
+                rgb_out = 24'h000000; 
         end
     end
     // Разбиваем готовый 24-битный цвет на три 8-битных канала
