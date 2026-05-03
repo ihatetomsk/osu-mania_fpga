@@ -16,16 +16,16 @@
 #
 # -------------------------------------------------------------------------- #
 #
-# Quartus II 32-bit
+# Quartus II 64-Bit
 # Version 13.0.1 Build 232 06/12/2013 Service Pack 1 SJ Web Edition
-# Date created = 20:26:11  April 28, 2026
+# Date created = 14:53:02  May 01, 2026
 #
 # -------------------------------------------------------------------------- #
 #
 # Notes:
 #
 # 1) The default values for assignments are stored in the file:
-#		HDMU_TEST_assignment_defaults.qdf
+#		osumania_assignment_defaults.qdf
 #    If this file doesn't exist, see file:
 #		assignment_defaults.qdf
 #
@@ -40,24 +40,34 @@ set_global_assignment -name FAMILY "Cyclone V"
 set_global_assignment -name DEVICE 5CGXFC5C6F27C7
 set_global_assignment -name TOP_LEVEL_ENTITY hdmi_top
 set_global_assignment -name ORIGINAL_QUARTUS_VERSION "13.0 SP1"
-set_global_assignment -name PROJECT_CREATION_TIME_DATE "20:26:11  APRIL 28, 2026"
+set_global_assignment -name PROJECT_CREATION_TIME_DATE "14:53:01  MAY 01, 2026"
 set_global_assignment -name LAST_QUARTUS_VERSION "13.0 SP1"
 set_global_assignment -name PROJECT_OUTPUT_DIRECTORY output_files
 set_global_assignment -name MIN_CORE_JUNCTION_TEMP 0
 set_global_assignment -name MAX_CORE_JUNCTION_TEMP 85
 set_global_assignment -name ERROR_CHECK_FREQUENCY_DIVISOR 256
-set_global_assignment -name EDA_SIMULATION_TOOL "ModelSim-Altera (SystemVerilog)"
-set_global_assignment -name EDA_OUTPUT_DATA_FORMAT "SYSTEMVERILOG HDL" -section_id eda_simulation
-set_global_assignment -name SYSTEMVERILOG_FILE hdmi_sync.sv
-set_global_assignment -name SYSTEMVERILOG_FILE pattern_gen.sv
-set_global_assignment -name SYSTEMVERILOG_FILE hdmi_top.sv
-set_global_assignment -name SYSTEMVERILOG_FILE hdmi_config.sv
-set_global_assignment -name SYSTEMVERILOG_FILE vga_generator.sv
-set_global_assignment -name SYSTEMVERILOG_FILE i2c_simple_controller.sv
+set_global_assignment -name POWER_PRESET_COOLING_SOLUTION "23 MM HEAT SINK WITH 200 LFPM AIRFLOW"
+set_global_assignment -name POWER_BOARD_THERMAL_MODEL "NONE (CONSERVATIVE)"
 set_global_assignment -name PARTITION_NETLIST_TYPE SOURCE -section_id Top
 set_global_assignment -name PARTITION_FITTER_PRESERVATION_LEVEL PLACEMENT_AND_ROUTING -section_id Top
 set_global_assignment -name PARTITION_COLOR 16764057 -section_id Top
-set_global_assignment -name SDC_FILE my_constraints.sdc
+set_global_assignment -name SOURCE_FILE HDMI/my_pll.spd
+set_global_assignment -name SOURCE_FILE HDMI/README.md
+set_global_assignment -name SIP_FILE HDMI/my_pll.sip
+set_global_assignment -name QIP_FILE HDMI/my_pll.qip
+set_global_assignment -name SOURCE_FILE HDMI/my_pll.ppf
+set_global_assignment -name BSF_FILE HDMI/my_pll.bsf
+set_global_assignment -name SDC_FILE HDMI/my_constraints.sdc
+set_global_assignment -name SOURCE_FILE HDMI/HDMU_TEST.qsf
+set_global_assignment -name SOURCE_FILE HDMI/HDMU_TEST.qpf
+set_global_assignment -name SYSTEMVERILOG_FILE HDMI/vga_generator.sv
+set_global_assignment -name SYSTEMVERILOG_FILE HDMI/pattern_gen.sv
+set_global_assignment -name VERILOG_FILE HDMI/my_pll.v -library my_pll
+set_global_assignment -name SOURCE_FILE HDMI/my_pll.cmp
+set_global_assignment -name SYSTEMVERILOG_FILE HDMI/i2c_simple_controller.sv
+set_global_assignment -name SYSTEMVERILOG_FILE HDMI/hdmi_top.sv
+set_global_assignment -name SYSTEMVERILOG_FILE HDMI/hdmi_config.sv
+set_global_assignment -name STRATIX_DEVICE_IO_STANDARD "2.5 V"
 
 #============================================================
 # Клок
@@ -68,7 +78,7 @@ set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to FPGA_CLK1_50
 #============================================================
 # Сброс (Кнопка KEY0)
 #============================================================
-set_location_assignment PIN_AB24 -to KEY[0]
+set_location_assignment PIN_U20 -to KEY[0]
 set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to KEY[0]
 
 #============================================================
@@ -136,13 +146,5 @@ set_location_assignment PIN_AC25 -to HDMI_TX_D[22]
 set_location_assignment PIN_AD25 -to HDMI_TX_D[23]
 
 set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to HDMI_TX_D[*]
-
-
-set_global_assignment -name QIP_FILE my_pll.qip
-set_global_assignment -name SIP_FILE my_pll.sip
-set_global_assignment -name STRATIX_DEVICE_IO_STANDARD "2.5 V"
-set_location_assignment PIN_P11 -to BTN[3]
-set_location_assignment PIN_P12 -to BTN[2]
-set_location_assignment PIN_Y15 -to BTN[1]
-set_location_assignment PIN_Y16 -to BTN[0]
+set_global_assignment -name EDA_SIMULATION_TOOL "<None>"
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top
