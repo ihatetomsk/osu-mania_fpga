@@ -14,7 +14,10 @@ module hdmi_top (
     output logic [23:0] HDMI_TX_D,
     output logic [3:0] LED ,          // СЃРІРµС‚РѕРґРёРѕРґС‹ РґР»СЏ РґРёР°РіРЅРѕСЃС‚РёРєРё
 
-    input  logic[3:0] BTN //buttons users game control
+    input  logic [3:0] BTN,
+
+    input  logic       uart_rx,      
+    output logic       uart_tx    
 );
 
 
@@ -27,8 +30,11 @@ module hdmi_top (
     assign rst = ~KEY[0];
 
 	 //conveniant work with integral buttons
-    logic [3:0] keys_active;
-    assign keys_active = ~BTN; 
+    logic [3:0] btn_active;
+    assign btn_active = ~BTN; 
+
+    // Signals from uart_display outputs to game logic
+    logic [3:0] keys_for_game;
 
     // РґРёР°РіРѕРЅСЃС‚РёРєР° С‡РµСЂРµР· СЃРІРµС‚РѕРґРёРѕРґС‹
     assign LED[0] = pll_locked;   // Р“РѕСЂРёС‚, РµСЃР»Рё PLL СЂР°Р±РѕС‚Р°РµС‚
@@ -67,13 +73,28 @@ module hdmi_top (
 
 	 logic [7:0] w_red, w_green, w_blue;
 	 
+	 uart_display uart_inst (
+        .clk        (FPGA_CLK1_50),   // 50 MHz for baud generation
+        .reset      (rst),            // active high reset
+        .rx         (uart_rx),
+        .tx         (uart_tx),
+        .but_1      (btn_active[0]),  // physical button 1 -> 'f' message
+        .but_2      (btn_active[1]),  // physical button 2 -> 'd' message
+        .but_3      (btn_active[2]),  // physical button 3 -> 's' message
+        .but_4      (btn_active[3]),  // physical button 4 -> 'a' message
+        .but_1_out  (keys_for_game[0]),
+        .but_2_out  (keys_for_game[1]),
+        .but_3_out  (keys_for_game[2]),
+        .but_4_out  (keys_for_game[3])
+    );
+	 
 	 pattern_gen game_logic (
         .clk (clk_25),
         .rst (rst),
         .x   (x),
         .y   (y),
         .de  (vga_de),
-		  .keys (keys_active),
+		  .keys (keys_for_game),
         .r   (w_red),
         .g   (w_green),
         .b   (w_blue)
@@ -90,6 +111,7 @@ module hdmi_top (
 //            HDMI_TX_D = 24'h000000;
 //        end
 //    end
+
 
     assign HDMI_TX_DE  = vga_de;
 	 assign HDMI_TX_D   = {w_red, w_green, w_blue};
