@@ -167,41 +167,84 @@ module pattern_gen (
             end
         end
     end
+
+////////////////////////////////////////////////////////////
+
+    //user blocks in bottom
+    assign in_rec_y = (y >= REC_Y_START) && (y <= REC_Y_END);
 	 
-	 logic [7:0] bloom_out;
-	 always_comb begin
+    logic [3:0] in_rec_x; // understand in what column we are
+    assign in_rec_x[0] = (x >= bx[0]) && (x < bx[0] + BLOCK_WIDTH);
+    assign in_rec_x[1] = (x >= bx[1]) && (x < bx[1] + BLOCK_WIDTH);
+    assign in_rec_x[2] = (x >= bx[2]) && (x < bx[2] + BLOCK_WIDTH);
+    assign in_rec_x[3] = (x >= bx[3]) && (x < bx[3] + BLOCK_WIDTH);
+	 
+    logic fill_rec_0, fill_rec_1, fill_rec_2, fill_rec_3;
+    assign fill_rec_0 = in_rec_y && in_rec_x[0];
+    assign fill_rec_1 = in_rec_y && in_rec_x[1];
+    assign fill_rec_2 = in_rec_y && in_rec_x[2];
+    assign fill_rec_3 = in_rec_y && in_rec_x[3];
+	 
+////////////////////////////////////////////////////////////
+    logic [1:0] cur_col;
+    logic is_in_col;
+    always_comb begin
+        cur_col = 2'd0;
+        is_in_col = 1'b0;
+        if      (in_rec_x[0]) begin cur_col = 2'd0; is_in_col = 1'b1; end
+        else if (in_rec_x[1]) begin cur_col = 2'd1; is_in_col = 1'b1; end
+        else if (in_rec_x[2]) begin cur_col = 2'd2; is_in_col = 1'b1; end
+        else if (in_rec_x[3]) begin cur_col = 2'd3; is_in_col = 1'b1; end
+    end
+
+
+    logic [9:0] base_val;
+    logic [10:0] dist_y;
+    logic signed [11:0] intensity;
+	logic [7:0] bloom_out;
+    always_comb begin
         bloom_out = 8'h00;
+        base_val  = 10'd0;
+        dist_y    = 11'd0;
+        intensity = 12'd0;
         
-        for (int i = 0; i < 4; i++) begin
-            //if flash active and we are in rec zone
-            if (flash[i] > 0 && in_rec_x[i]) begin
-                
-                // check if we are in hit zone by Y
-                if (y <= HIT_Y_END) begin
-                    int intensity;
-                    int base_val;
-                    int dist_y;
-                    
-                    // base value of bloom effect depends on flash timer, when flash = 31 -> base_val = 248, when flash = 1 -> base_val = 8
-                    base_val = int'(flash[i]) * 8;
-                    
-                    // distance from current pixel to hit zone, when we are in hit zone -> dist_y = 0
-                    dist_y = int'(HIT_Y_END) - int'(y);
-                    
-                    // intensity of bloom effect decreases as we move away from hit zone
-                    intensity = base_val - (dist_y * 2); 
-                    
-                    if (intensity > 0) begin
-                        // add bloom effect to current pixel
-                        if (int'(bloom_out) + intensity > 255) bloom_out = 8'hFF;
-                        else bloom_out = bloom_out + intensity[7:0];
+        // Если пиксель в колонке, там есть вспышка и мы в нужной зоне по Y
+        if (is_in_col && flash[cur_col] > 0 && y <= HIT_Y_END) begin
+            
+            // Умножение на 8 заменяем сдвигом влево на 3 (<< 3) - это работает мгновенно
+            base_val = {5'b0, flash[cur_col]} << 3; 
+            
+            // Дистанция по Y
+            dist_y = HIT_Y_END - y;
+            
+            // Умножение на 2 заменяем сдвигом влево на 1 (<< 1)
+            // intensity = base_val - (dist_y * 2)
+            intensity = $signed({2'b0, base_val}) - $signed({1'b0, dist_y, 1'b0});
+            
+            if (intensity > 0) begin
+                if (intensity > 255) bloom_out = 8'hFF;
+                else bloom_out = intensity[7:0];
+            end
+        end
+    end
+
+////////////////////////////////////////////////////////////
+    logic draw_block_any;
+    always_comb begin
+        draw_block_any = 1'b0;
+        for (int i = 0; i < MAX_BLOCKS; i++) begin
+            if (block_visible[i]) begin
+                if (in_rec_x[block_lane[i]]) begin
+                    if (y >= block_y[i] && y < block_y[i] + BLOCK_HEIGHT) begin
+                        draw_block_any = 1'b1;
                     end
                 end
             end
         end
     end
 
-
+////////////////////////////////////////////////////////////
+    
     //draw logic
     logic in_hit_zone_y;
     logic draw_line_left;
@@ -219,54 +262,30 @@ module pattern_gen (
 	 
 	assign in_hit_zone_y   = (y >= HIT_Y_START) && (y <= HIT_Y_END);
 
-	logic draw_block_any;
-    always_comb begin
-        draw_block_any = 1'b0;
-        for (int i = 0; i < MAX_BLOCKS; i++) begin
-            if (block_visible[i]) begin
-                if (x >= bx[block_lane[i]] && x < bx[block_lane[i]] + BLOCK_WIDTH &&
-                    y >= block_y[i] && y < block_y[i] + BLOCK_HEIGHT) begin
-                    draw_block_any = 1'b1;
-                end
-            end
-        end
-    end
+    logic [23:0] next_rgb_out; 
 	 
-	//user blocks in bottom
-    assign in_rec_y = (y >= REC_Y_START) && (y <= REC_Y_END);
-	 
-    logic [3:0] in_rec_x; // understand in what column we are
-    assign in_rec_x[0] = (x >= bx[0]) && (x < bx[0] + BLOCK_WIDTH);
-    assign in_rec_x[1] = (x >= bx[1]) && (x < bx[1] + BLOCK_WIDTH);
-    assign in_rec_x[2] = (x >= bx[2]) && (x < bx[2] + BLOCK_WIDTH);
-    assign in_rec_x[3] = (x >= bx[3]) && (x < bx[3] + BLOCK_WIDTH);
-	 
-    logic fill_rec_0, fill_rec_1, fill_rec_2, fill_rec_3;
-    assign fill_rec_0 = in_rec_y && in_rec_x[0];
-    assign fill_rec_1 = in_rec_y && in_rec_x[1];
-    assign fill_rec_2 = in_rec_y && in_rec_x[2];
-    assign fill_rec_3 = in_rec_y && in_rec_x[3];
-	 
+
 	 
     // main draw process
     always_comb begin
         if (!de) begin
-            rgb_out = 24'h000000;     
+            next_rgb_out = 24'h000000;    
         end else begin
 		  
 		      if (draw_line_left || draw_line_right)
-                rgb_out = 24'hFFFFFF; // white line of borders
+                next_rgb_out  = 24'hFFFFFF; // white line of borders
 					 
 				else if (bloom_out > 200) begin 
                 //in center of flash make white color
-                rgb_out = 24'hFFFFFF;
+                next_rgb_out  = 24'hFFFFFF;
             end
 
             else if (draw_block_any)
-                rgb_out = 24'hFF3333; //blocks
+                next_rgb_out  = 24'hFF3333; //blocks
 					 
 				else begin
                 logic [7:0] base_r, base_g, base_b;
+                logic [8:0] sum_r, sum_g, sum_b;
                 
                 // base colors
                 if (fill_rec_0) {base_r, base_g, base_b} = keys_flipped[0] ? 24'hFFFFFF : 24'hFF8800;
@@ -277,17 +296,27 @@ module pattern_gen (
                 else if (draw_zone) {base_r, base_g, base_b} = 24'h222222;
                 else {base_r, base_g, base_b} = 24'h000000;
 
-
                 // add effect bloom
-                rgb_out[23:16] = (base_r + bloom_out > 255) ? 8'hFF : base_r + bloom_out;
-                rgb_out[15:8]  = (base_g + bloom_out > 255) ? 8'hFF : base_g + bloom_out;
-                rgb_out[7:0]   = (base_b + bloom_out > 255) ? 8'hFF : base_b + bloom_out;
+                sum_r = base_r + bloom_out;
+                sum_g = base_g + bloom_out;
+                sum_b = base_b + bloom_out;    
+
+                next_rgb_out[23:16] = sum_r[8] ? 8'hFF : sum_r[7:0];
+                next_rgb_out[15:8]  = sum_g[8] ? 8'hFF : sum_g[7:0];
+                next_rgb_out[7:0]   = sum_b[8] ? 8'hFF : sum_b[7:0];
+                
             end
         end
     end
+
+    logic [23:0] rgb_out_reg;
+    always_ff @(posedge clk) begin
+        if (rst) rgb_out_reg <= 24'h000000;
+        else     rgb_out_reg <= next_rgb_out;
+    end
     // decompose 24-bit color to RGB channels
-    assign r = rgb_out[23:16];
-    assign g = rgb_out[15:8];
-    assign b = rgb_out[7:0];
+    assign r = rgb_out_reg[23:16];
+    assign g = rgb_out_reg[15:8];
+    assign b = rgb_out_reg[7:0];
 
 endmodule

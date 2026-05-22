@@ -1,7 +1,7 @@
 module hdmi_top (
     input  logic        FPGA_CLK1_50, // Входной клок 50 МГц
     input  logic [0:0]  KEY,          // Кнопка сброса [0]
-	 input  logic [1:0]  mode,
+	input  logic [1:0]  mode,
     
     // I2C для настройки чипа передатчика
     output logic        HDMI_I2C_SCL,
