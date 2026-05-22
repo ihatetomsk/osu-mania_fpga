@@ -116,7 +116,7 @@ module hdmi_top (
         .x     (x),
         .y     (y),
         .de    (vga_de),
-        .keys  (keys_for_game),
+        .keys  (btn_active), //пока убрал keys_for_game ведь проблема в том что оно на один такт подает значения и не детектит удержание
         .r     (w_red),
         .g     (w_green),
         .b     (w_blue)

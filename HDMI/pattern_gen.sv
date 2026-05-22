@@ -53,7 +53,7 @@ module pattern_gen (
             end
             2'b01: begin // 800x600 @ 60Hz
                 h_res       = 11'd800;  v_res       = 11'd600;
-                game_left   = 11'd280;   game_right  = 11'd520;
+                game_left   = 11'd280;   game_right  = 11'd523;
                 BLOCK_WIDTH = 11'd60;    BLOCK_HEIGHT= 11'd16;
                 HIT_Y_START = 11'd500;   HIT_Y_END   = 11'd525;
                 REC_Y_START = 11'd526;   REC_Y_END   = 11'd599;
@@ -62,7 +62,7 @@ module pattern_gen (
             end
             2'b10: begin // 1024x768 @ 60Hz
                 h_res       = 11'd1024; v_res       = 11'd768;
-                game_left   = 11'd362;   game_right  = 11'd662;
+                game_left   = 11'd362;   game_right  = 11'd665;
                 BLOCK_WIDTH = 11'd75;    BLOCK_HEIGHT= 11'd21;
                 HIT_Y_START = 11'd650;   HIT_Y_END   = 11'd680;
                 REC_Y_START = 11'd681;   REC_Y_END   = 11'd767;
@@ -288,10 +288,10 @@ module pattern_gen (
                 logic [8:0] sum_r, sum_g, sum_b;
                 
                 // base colors
-                if (fill_rec_0) {base_r, base_g, base_b} = keys_flipped[0] ? 24'hFFFFFF : 24'hFF8800;
-                else if (fill_rec_1) {base_r, base_g, base_b} = keys_flipped[1] ? 24'hFFFFFF : 24'hFF8800;
-                else if (fill_rec_2) {base_r, base_g, base_b} = keys_flipped[2] ? 24'hFFFFFF : 24'hFF8800;
-                else if (fill_rec_3) {base_r, base_g, base_b} = keys_flipped[3] ? 24'hFFFFFF : 24'hFF8800;
+                if (fill_rec_0) {base_r, base_g, base_b} = keys[0] ? 24'hFFFFFF : 24'hFF8800;
+                else if (fill_rec_1) {base_r, base_g, base_b} = keys[1] ? 24'hFFFFFF : 24'hFF8800;
+                else if (fill_rec_2) {base_r, base_g, base_b} = keys[2] ? 24'hFFFFFF : 24'hFF8800;
+                else if (fill_rec_3) {base_r, base_g, base_b} = keys[3] ? 24'hFFFFFF : 24'hFF8800;
                 else if (in_hit_zone_y && draw_zone) {base_r, base_g, base_b} = 24'h445566;
                 else if (draw_zone) {base_r, base_g, base_b} = 24'h222222;
                 else {base_r, base_g, base_b} = 24'h000000;
