@@ -100,28 +100,28 @@ begin
 							message(12) <= x"0D";
                      message(13) <= x"0A";
 							msg_len    <= 14;
-							but_4_out <= '1';
+							but_1_out <= '1';
 							
 						elsif rx_data = x"73" then   
 							message <= to_ascii("s is pressed", 12);
 							message(12) <= x"0D";
                      message(13) <= x"0A";
 							msg_len    <= 14;
-							but_3_out <= '1';
+							but_2_out <= '1';
 							
 						elsif rx_data = x"64" then   
 							message <= to_ascii("d is pressed", 12);
 							message(12) <= x"0D";
                      message(13) <= x"0A";
 							msg_len    <= 14;
-							but_2_out <= '1';
+							but_3_out <= '1';
 						
 						elsif rx_data = x"66" then   
 							message <= to_ascii("f is pressed", 12);
 							message(12) <= x"0D";
                      message(13) <= x"0A";
 							msg_len    <= 14;
-							but_1_out <= '1';
+							but_4_out <= '1';
 							
 						elsif rx_data = x"0D" then   
 							message <= to_ascii("ENTER is pressed", 16);
@@ -139,7 +139,7 @@ begin
 						state <= LOAD_CHAR;
 						char_index <= 0;
 						
-					elsif but4_rise = '1' then
+					elsif but1_rise = '1' then
 
                         message <= to_ascii("a is pressed", 12);
                         message(12) <= x"0D";
@@ -147,19 +147,10 @@ begin
                         msg_len <= 14;
                         state <= LOAD_CHAR;
                         char_index <= 0;
-								but_4_out <= '1';
-
-                    elsif but3_rise = '1' then
-                        message <= to_ascii("s is pressed", 12);
-                        message(12) <= x"0D";
-                        message(13) <= x"0A";
-                        msg_len <= 14;
-                        state <= LOAD_CHAR;
-                        char_index <= 0;
-								but_3_out <= '1';
+								but_1_out <= '1';
 
                     elsif but2_rise = '1' then
-                        message <= to_ascii("d is pressed", 12);
+                        message <= to_ascii("s is pressed", 12);
                         message(12) <= x"0D";
                         message(13) <= x"0A";
                         msg_len <= 14;
@@ -167,14 +158,23 @@ begin
                         char_index <= 0;
 								but_2_out <= '1';
 
-                    elsif but1_rise = '1' then
+                    elsif but3_rise = '1' then
+                        message <= to_ascii("d is pressed", 12);
+                        message(12) <= x"0D";
+                        message(13) <= x"0A";
+                        msg_len <= 14;
+                        state <= LOAD_CHAR;
+                        char_index <= 0;
+								but_3_out <= '1';
+
+                    elsif but4_rise = '1' then
                         message <= to_ascii("f is pressed", 12);
                         message(12) <= x"0D";
                         message(13) <= x"0A";
                         msg_len <= 14;
                         state <= LOAD_CHAR;
                         char_index <= 0;
-								but_1_out <= '1';
+								but_4_out <= '1';
 
 					end if;
 				

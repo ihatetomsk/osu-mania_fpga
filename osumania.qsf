@@ -58,8 +58,6 @@ set_global_assignment -name QIP_FILE HDMI/my_pll.qip
 set_global_assignment -name SOURCE_FILE HDMI/my_pll.ppf
 set_global_assignment -name BSF_FILE HDMI/my_pll.bsf
 set_global_assignment -name SDC_FILE HDMI/my_constraints.sdc
-set_global_assignment -name SOURCE_FILE HDMI/HDMU_TEST.qsf
-set_global_assignment -name SOURCE_FILE HDMI/HDMU_TEST.qpf
 set_global_assignment -name SYSTEMVERILOG_FILE HDMI/vga_generator.sv
 set_global_assignment -name SYSTEMVERILOG_FILE HDMI/pattern_gen.sv
 set_global_assignment -name VERILOG_FILE HDMI/my_pll.v -library my_pll
@@ -78,7 +76,7 @@ set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to FPGA_CLK1_50
 #============================================================
 # Сброс (Кнопка KEY0)
 #============================================================
-set_location_assignment PIN_U20 -to KEY[0]
+set_location_assignment PIN_AB24 -to KEY[0]
 set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to KEY[0]
 
 #============================================================

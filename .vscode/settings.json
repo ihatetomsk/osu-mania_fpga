@@ -1,0 +1,9 @@
+{
+    "files.encoding": "windows1251",
+    "[systemverilog]": {
+        "files.encoding": "windows1251"
+    },
+    "[vhdl]": {
+        "files.encoding": "windows1251"
+    }
+}

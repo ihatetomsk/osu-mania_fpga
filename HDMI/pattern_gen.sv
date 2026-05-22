@@ -58,8 +58,15 @@ module pattern_gen (
     end
 
 
-	 logic [3:0] keys_pulse;
-	 assign keys_pulse = keys & ~keys_prev;
+	logic [3:0] keys_pulse;
+    logic [3:0] keys_flipped;
+
+    assign keys_flipped[0] = keys[3]; // Физическая левая кнопка (бывшая BTN[3]) -> 0-я левая дорожка
+    assign keys_flipped[1] = keys[2]; // Вторая слева -> 1-я дорожка
+    assign keys_flipped[2] = keys[1]; // Третья слева -> 2-я дорожка
+    assign keys_flipped[3] = keys[0]; // Физическая правая кнопка (бывшая BTN[0]) -> 3-я правая дорожка
+
+	assign keys_pulse = keys & ~keys_prev;
     always_ff @(posedge clk or posedge rst) begin
         if (rst) begin
 			for (int i=0; i<MAX_BLOCKS; i++) begin
@@ -223,10 +230,10 @@ module pattern_gen (
                 logic [7:0] base_r, base_g, base_b;
                 
                 // base colors
-                if (fill_rec_0) {base_r, base_g, base_b} = keys[0] ? 24'hFFFFFF : 24'hFF8800;
-                else if (fill_rec_1) {base_r, base_g, base_b} = keys[1] ? 24'hFFFFFF : 24'hFF8800;
-                else if (fill_rec_2) {base_r, base_g, base_b} = keys[2] ? 24'hFFFFFF : 24'hFF8800;
-                else if (fill_rec_3) {base_r, base_g, base_b} = keys[3] ? 24'hFFFFFF : 24'hFF8800;
+                if (fill_rec_0) {base_r, base_g, base_b} = keys_flipped[0] ? 24'hFFFFFF : 24'hFF8800;
+                else if (fill_rec_1) {base_r, base_g, base_b} = keys_flipped[1] ? 24'hFFFFFF : 24'hFF8800;
+                else if (fill_rec_2) {base_r, base_g, base_b} = keys_flipped[2] ? 24'hFFFFFF : 24'hFF8800;
+                else if (fill_rec_3) {base_r, base_g, base_b} = keys_flipped[3] ? 24'hFFFFFF : 24'hFF8800;
                 else if (in_hit_zone_y && draw_zone) {base_r, base_g, base_b} = 24'h445566;
                 else if (draw_zone) {base_r, base_g, base_b} = 24'h222222;
                 else {base_r, base_g, base_b} = 24'h000000;
