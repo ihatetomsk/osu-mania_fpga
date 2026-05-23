@@ -1,9 +1,9 @@
 module pattern_gen (
     input  logic clk,       // clk from pll
     input  logic rst,       
-    input  logic [1:0] mode, // Текущий режим разрешения
-    input  logic [10:0] x,   // current pos X (от vga_generator)
-    input  logic [10:0] y,   // current pos Y (от vga_generator)
+    input  logic [1:0] mode, // пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+    input  logic [10:0] x,   // current pos X (пїЅпїЅ vga_generator)
+    input  logic [10:0] y,   // current pos Y (пїЅпїЅ vga_generator)
     input  logic de,        // Data Enable
     input  logic[3:0] keys,
     output logic [7:0] r,   
@@ -27,7 +27,7 @@ module pattern_gen (
     // generate frame tick at the end of each frame (when we are at the last pixel)
 	 
     // ------------------------------------------------------------
-    // Режим-зависимые параметры развертки и игрового поля
+    // пїЅпїЅпїЅпїЅпїЅ-пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ
     // ------------------------------------------------------------
     logic [10:0] h_res, v_res;
     logic [10:0] game_left, game_right;
@@ -69,7 +69,7 @@ module pattern_gen (
                 block_speed = 11'd5;
                 bx[0] = 11'd362; bx[1] = 11'd438; bx[2] = 11'd514; bx[3] = 11'd590;
             end
-            default: begin // Дефолт 640x480
+            default: begin // пїЅпїЅпїЅпїЅпїЅпїЅ 640x480
                 h_res       = 11'd640;  v_res       = 11'd480;
                 game_left   = 11'd215;   game_right  = 11'd426;
                 BLOCK_WIDTH = 11'd52;    BLOCK_HEIGHT= 11'd13;
@@ -84,8 +84,8 @@ module pattern_gen (
     assign frame_tick = (x == h_res - 11'd1 && y == v_res - 11'd1);
 	 
 	 
-	localparam MAX_BLOCKS   = 10; //max quantity of blocks on screen
-	logic [10:0] block_y[0:MAX_BLOCKS-1]; // height of every block
+	 localparam MAX_BLOCKS   = 10; //max quantity of blocks on screen
+	 logic [10:0] block_y[0:MAX_BLOCKS-1]; // height of every block
     logic [1:0] block_lane[0:MAX_BLOCKS-1]; // in what column
     logic       block_visible [0:MAX_BLOCKS-1]; // 1 - block in process to catch, 0 - caught/free
 	 
@@ -94,7 +94,7 @@ module pattern_gen (
     logic [3:0] keys_prev;     
 	 
 	 //logic to find block with visible =0 to regenerate
-	logic[3:0] free_idx;
+	 logic[3:0] free_idx;
     logic      has_free;
     always_comb begin
         free_idx = 4'd0;
@@ -108,23 +108,37 @@ module pattern_gen (
     end
 
 
-	logic [3:0] keys_pulse;
+	 logic [3:0] keys_pulse;
     logic [3:0] keys_flipped;
 
-    assign keys_flipped[0] = keys[3]; // крайний левый ряд (кнопка BTN[3]) -> 0-й ряд игрока
-    assign keys_flipped[1] = keys[2]; // левый ряд -> 1-й ряд
-    assign keys_flipped[2] = keys[1]; // правый ряд -> 2-й ряд
-    assign keys_flipped[3] = keys[0]; // крайний правый ряд (кнопка BTN[0]) -> 3-й ряд игрока
+    assign keys_flipped[0] = keys[3]; // пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅпїЅ BTN[3]) -> 0-пїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
+    assign keys_flipped[1] = keys[2]; // пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ -> 1-пїЅ пїЅпїЅпїЅ
+    assign keys_flipped[2] = keys[1]; // пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ -> 2-пїЅ пїЅпїЅпїЅ
+    assign keys_flipped[3] = keys[0]; // пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅпїЅ BTN[0]) -> 3-пїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
 
-	assign keys_pulse = keys & ~keys_prev;
+	 logic [3:0] combo_ones;
+    logic [3:0] combo_tens;
+    logic [3:0] combo_hundreds;
+	 logic [3:0] top_ones, top_tens, top_hundreds;
+	 
+	 logic is_new_record;
+    assign is_new_record = (combo_ones == top_ones) && (combo_tens == top_tens) && (combo_hundreds == top_hundreds);
+	 
+	 assign keys_pulse = keys & ~keys_prev;
     always_ff @(posedge clk or posedge rst) begin
         if (rst) begin
-			for (int i=0; i < MAX_BLOCKS; i++) begin
-                block_visible[i] <= 1'b0;
-                block_y[i]       <= 11'd0;
-                block_lane[i]    <= 2'd0;
-            end
-			for (int i=0; i < 4; i++) flash[i] <= 5'd0;
+				combo_ones     <= 4'd0;
+            combo_tens     <= 4'd0;
+            combo_hundreds <= 4'd0;
+				top_ones			<= 4'd0;
+				top_tens			<= 4'd0;
+				top_hundreds	<= 4'd0;
+		  for (int i=0; i < MAX_BLOCKS; i++) begin
+			   block_visible[i] <= 1'b0;
+			   block_y[i]       <= 11'd0;
+			   block_lane[i]    <= 2'd0;
+        end
+		  for (int i=0; i < 4; i++) flash[i] <= 5'd0;
             spawn_timer <= 0;
             keys_prev   <= 4'd0;
         end else begin
@@ -145,9 +159,12 @@ module pattern_gen (
                     
                 for (int i=0; i < MAX_BLOCKS; i++) begin
                     if (block_visible[i]) begin
-                        if (block_y[i] + BLOCK_HEIGHT >= v_res) 
+                        if (block_y[i] + BLOCK_HEIGHT >= v_res) begin
                             block_visible[i] <= 1'b0; // block is out of screen
-                        else 
+									 combo_ones <= 4'd0;
+                            combo_tens <= 4'd0;
+                            combo_hundreds <= 4'd0;
+                        end else 
                             block_y[i] <= block_y[i] + block_speed;
                     end
                 end
@@ -162,6 +179,28 @@ module pattern_gen (
                         
                         block_visible[i]     <= 1'b0;  // hide block (caught)
                         flash[block_lane[i]] <= 5'd31; 
+								
+								if (combo_ones == 9) begin
+                            combo_ones <= 0;
+                            if (is_new_record) top_ones <= 0; 
+
+                            if (combo_tens == 9) begin
+                                combo_tens <= 0;
+                                if (is_new_record) top_tens <= 0;
+                                
+                                if (combo_hundreds < 9) begin
+                                    combo_hundreds <= combo_hundreds + 1;
+                                    if (is_new_record) top_hundreds <= top_hundreds + 1;
+                                end
+                            end else begin
+                                combo_tens <= combo_tens + 1;
+                                if (is_new_record) top_tens <= top_tens + 1;
+                            end
+                        end else begin
+                            combo_ones <= combo_ones + 1;
+                            if (is_new_record) top_ones <= top_ones + 1; // Р•СЃР»Рё РёРґРµРј РЅР° СЂРµРєРѕСЂРґ, РѕР±РЅРѕРІР»СЏРµРј
+                        end
+								
                     end
                 end
             end
@@ -201,23 +240,23 @@ module pattern_gen (
     logic [9:0] base_val;
     logic [10:0] dist_y;
     logic signed [11:0] intensity;
-	logic [7:0] bloom_out;
+	 logic [7:0] bloom_out;
     always_comb begin
         bloom_out = 8'h00;
         base_val  = 10'd0;
         dist_y    = 11'd0;
         intensity = 12'd0;
         
-        // Если пиксель в колонке, там есть вспышка и мы в нужной зоне по Y
+        // пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅ Y
         if (is_in_col && flash[cur_col] > 0 && y <= HIT_Y_END) begin
             
-            // Умножение на 8 заменяем сдвигом влево на 3 (<< 3) - это работает мгновенно
+            // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ 8 пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ 3 (<< 3) - пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
             base_val = {5'b0, flash[cur_col]} << 3; 
             
-            // Дистанция по Y
+            // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ Y
             dist_y = HIT_Y_END - y;
             
-            // Умножение на 2 заменяем сдвигом влево на 1 (<< 1)
+            // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ 2 пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ 1 (<< 1)
             // intensity = base_val - (dist_y * 2)
             intensity = $signed({2'b0, base_val}) - $signed({1'b0, dist_y, 1'b0});
             
@@ -244,6 +283,22 @@ module pattern_gen (
     end
 
 ////////////////////////////////////////////////////////////
+//combo draw
+    logic [1:0] text_pixel_type;
+
+    sprite_combo text_engine (
+        .x              (x),
+        .y              (y),
+        .combo_ones     (combo_ones),
+        .combo_tens     (combo_tens),
+        .combo_hundreds (combo_hundreds),
+        .top_ones       (top_ones),         
+        .top_tens       (top_tens),
+        .top_hundreds   (top_hundreds),
+        .text_pixel     (text_pixel_type) 
+    );
+
+////////////////////////////////////////////////////////////
     
     //draw logic
     logic in_hit_zone_y;
@@ -260,7 +315,7 @@ module pattern_gen (
     // main game zone
     assign draw_zone = (x >= game_left) && (x < game_right);
 	 
-	assign in_hit_zone_y   = (y >= HIT_Y_START) && (y <= HIT_Y_END);
+	 assign in_hit_zone_y   = (y >= HIT_Y_START) && (y <= HIT_Y_END);
 
     logic [23:0] next_rgb_out; 
 	 
@@ -282,6 +337,9 @@ module pattern_gen (
 
             else if (draw_block_any)
                 next_rgb_out  = 24'hFF3333; //blocks
+					 
+				else if (text_pixel_type != 2'd0)
+                next_rgb_out  = 24'h00FFFF;
 					 
 				else begin
                 logic [7:0] base_r, base_g, base_b;
