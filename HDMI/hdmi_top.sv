@@ -1,13 +1,14 @@
 module hdmi_top (
     input  logic        FPGA_CLK1_50, // Входной клок 50 МГц
     input  logic [0:0]  KEY,          // Кнопка сброса [0]
-	input  logic [1:0]  mode,
+	 input  logic [1:0]  mode,
     
     // I2C для настройки чипа передатчика
     output logic        HDMI_I2C_SCL,
     inout  wire         HDMI_I2C_SDA,
     
     // Интерфейс HDMI (Видео)
+	 input  logic        HDMI_TX_INT,  
     output logic        HDMI_TX_CLK,
     output logic        HDMI_TX_HS,
     output logic        HDMI_TX_VS,
@@ -66,10 +67,16 @@ module hdmi_top (
         endcase
     end
 	 
+	 
+	 /////////////////////////////
+	 //hot plug detect
+
+	 ///////////////////////////
+	 
     // Конфигуратор чипа ADV7513
     hdmi_config cfg (
         .clk      (FPGA_CLK1_50),
-        .rst      (rst),
+        .rst      (i2c_auto_rst),
         .i2c_sclk (HDMI_I2C_SCL),
         .i2c_sdat (HDMI_I2C_SDA),
         .ready    (ready)        
