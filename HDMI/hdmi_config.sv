@@ -24,6 +24,7 @@ module hdmi_config (
             5'd9:  rom_data = 16'h1500; // 24-bit RGB 4:4:4
             5'd10: rom_data = 16'h1660; // Output style 1
             5'd11: rom_data = 16'hAF06; // Режим HDMI (не DVI)
+				5'd12: rom_data = 16'hD6C0; // HPD OVERRIDE
             default: rom_data = 16'h0000;
         endcase
     end
@@ -60,7 +61,7 @@ module hdmi_config (
                     if (done) state <= NEXT;
                 end
                 NEXT: begin
-                    if (rom_addr == 11) begin
+                    if (rom_addr == 12) begin
                         state <= FINISH;
                         ready <= 1;
                     end else begin
