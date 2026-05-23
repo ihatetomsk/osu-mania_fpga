@@ -152,8 +152,8 @@ set_location_assignment PIN_L9 -to uart_tx
 set_global_assignment -name TOP_LEVEL_ENTITY hdmi_top
 set_location_assignment PIN_T12 -to HDMI_TX_INT
 set_instance_assignment -name IO_STANDARD "1.2 V" -to HDMI_TX_INT
+set_global_assignment -name SYSTEMVERILOG_FILE HDMI/sprite_combo_logic.sv
 set_global_assignment -name QIP_FILE ip/pll/p_pll.qip
-set_global_assignment -name SOURCE_FILE HDMI/README.md
 set_global_assignment -name SDC_FILE HDMI/my_constraints.sdc
 set_global_assignment -name SYSTEMVERILOG_FILE HDMI/vga_generator.sv
 set_global_assignment -name SYSTEMVERILOG_FILE HDMI/pattern_gen.sv
