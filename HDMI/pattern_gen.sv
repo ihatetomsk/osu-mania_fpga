@@ -199,7 +199,7 @@ module pattern_gen (
                         if (found_second) begin
                             block_visible[second_free] <= 1'b1;
                             block_y[second_free]       <= 11'd0;
-                            // Сдвигаем дорожку второй ноты на соседнюю с помощью операции ^ 2'b01
+                            // Сдвигаем дорожку второй ноты 
                             block_lane[second_free]    <= (lfsr[10:9] == lfsr[1:0]) ? (lfsr[1:0] ^ 2'b01) : lfsr[10:9]; 
                         end
                     end
