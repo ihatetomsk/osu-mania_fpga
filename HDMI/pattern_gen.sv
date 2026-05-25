@@ -2,6 +2,8 @@ module pattern_gen (
     input  logic clk,       // clk from pll
     input  logic rst,       
     input  logic [1:0] mode, // ������� ����� ����������
+	 input  logic [1:0] speed_mode,
+	 input  logic [1:0] spawn_mode,
     input  logic [10:0] x,   // current pos X (�� vga_generator)
     input  logic [10:0] y,   // current pos Y (�� vga_generator)
     input  logic de,        // Data Enable
@@ -39,8 +41,11 @@ module pattern_gen (
     logic [10:0] REC_Y_END;
     logic [10:0] block_speed;
     logic [10:0] bx [0:3];
-
+	 logic [10:0] base_speed;
+	 logic [5:0]  spawn_interval;
+	 
     always_comb begin
+		  block_speed = base_speed + {9'd0, speed_mode}; 
         case (mode)
             2'b00: begin // 640x480 @ 60Hz
                 h_res       = 11'd640;  v_res       = 11'd480;
@@ -48,7 +53,7 @@ module pattern_gen (
                 BLOCK_WIDTH = 11'd52;    BLOCK_HEIGHT= 11'd13;
                 HIT_Y_START = 11'd400;   HIT_Y_END   = 11'd419;
                 REC_Y_START = 11'd420;   REC_Y_END   = 11'd479;
-                block_speed = 11'd3;
+                base_speed  = 11'd2;
                 bx[0] = 11'd215; bx[1] = 11'd268; bx[2] = 11'd321; bx[3] = 11'd374;
             end
             2'b01: begin // 800x600 @ 60Hz
@@ -57,7 +62,7 @@ module pattern_gen (
                 BLOCK_WIDTH = 11'd60;    BLOCK_HEIGHT= 11'd16;
                 HIT_Y_START = 11'd500;   HIT_Y_END   = 11'd525;
                 REC_Y_START = 11'd526;   REC_Y_END   = 11'd599;
-                block_speed = 11'd4;
+                base_speed  = 11'd2;
                 bx[0] = 11'd280; bx[1] = 11'd341; bx[2] = 11'd402; bx[3] = 11'd463;
             end
             2'b10: begin // 1024x768 @ 60Hz
@@ -66,7 +71,7 @@ module pattern_gen (
                 BLOCK_WIDTH = 11'd75;    BLOCK_HEIGHT= 11'd21;
                 HIT_Y_START = 11'd650;   HIT_Y_END   = 11'd680;
                 REC_Y_START = 11'd681;   REC_Y_END   = 11'd767;
-                block_speed = 11'd5;
+                base_speed  = 11'd2;
                 bx[0] = 11'd362; bx[1] = 11'd438; bx[2] = 11'd514; bx[3] = 11'd590;
             end
             default: begin // ������ 640x480
@@ -75,9 +80,19 @@ module pattern_gen (
                 BLOCK_WIDTH = 11'd52;    BLOCK_HEIGHT= 11'd13;
                 HIT_Y_START = 11'd400;   HIT_Y_END   = 11'd419;
                 REC_Y_START = 11'd420;   REC_Y_END   = 11'd479;
-                block_speed = 11'd3;
+                base_speed  = 11'd2;
                 bx[0] = 11'd215; bx[1] = 11'd268; bx[2] = 11'd321; bx[3] = 11'd374;
             end
+        endcase
+    end
+	 
+	 always_comb begin
+        case (spawn_mode)
+            2'b00:   spawn_interval = 6'd50; // Редкие ноты (Супер-изи)
+            2'b01:   spawn_interval = 6'd30; // Стандартный режим
+            2'b10:   spawn_interval = 6'd18; // Плотный поток (Сложно)
+            2'b11:   spawn_interval = 6'd10; // "Стена" из блоков (Абсолютное безумие!)
+            default: spawn_interval = 6'd30;
         endcase
     end
 
@@ -148,7 +163,7 @@ module pattern_gen (
                     if (flash[j] > 0) flash[j] <= flash[j] - 5'd1;
                 end
                 spawn_timer <= spawn_timer + 6'd1; //every 2 sec
-                if (spawn_timer >= 6'd30) begin
+                if (spawn_timer >= spawn_interval) begin
                     spawn_timer <= 0;
                     if (has_free) begin
                         block_visible[free_idx] <= 1'b1;

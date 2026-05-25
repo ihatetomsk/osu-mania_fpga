@@ -34,12 +34,12 @@ module sprite_combo (
     logic [3:0] cur_digit;
     logic [2:0] char_x;
     logic [3:0] char_y;
-	 logic is_top_score_zone;
+	logic is_top_score_zone;
     
     // Базовые координаты вывода на экран
     localparam START_X = 11'd40;
     localparam START_Y = 11'd100;
-	 localparam TOP_Y   = 11'd180;
+	localparam TOP_Y   = 11'd180;
 
     always_comb begin
         draw_any = 1'b0;

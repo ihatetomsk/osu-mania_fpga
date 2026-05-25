@@ -1,7 +1,10 @@
 module hdmi_top (
     input  logic        FPGA_CLK1_50, // Входной клок 50 МГц
     input  logic [0:0]  KEY,          // Кнопка сброса [0]
-	 input  logic [1:0]  mode,
+	 input  logic [1:0]  mode, //display resolution
+	 input  logic [1:0]  speed_mode,
+	 input  logic [1:0]  diff_mode,
+	 
     
     // I2C для настройки чипа передатчика
     output logic        HDMI_I2C_SCL,
@@ -120,6 +123,8 @@ module hdmi_top (
         .clk   (clk_pixel),
         .rst   (rst),
         .mode  (mode),
+		  .speed_mode (speed_mode),
+		  .spawn_mode (diff_mode),
         .x     (x),
         .y     (y),
         .de    (vga_de),
@@ -129,17 +134,6 @@ module hdmi_top (
         .b     (w_blue)
     );
 
-    // (Закомментировано) Старый тестовый генератор цветных полос
-    // logic [23:0] test_rgb;
-    // always_comb begin
-    //     if (vga_de) begin
-    //         if (x < 213)      test_rgb = 24'hFF0000;
-    //         else if (x < 426) test_rgb = 24'h00FF00;
-    //         else              test_rgb = 24'h0000FF;
-    //     end else begin
-    //         test_rgb = 24'h000000;
-    //     end
-    // end
 
     // Назначение выходных сигналов на разъем HDMI
     assign HDMI_TX_DE  = vga_de;
