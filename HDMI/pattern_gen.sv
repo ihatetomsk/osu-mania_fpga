@@ -14,13 +14,13 @@ module pattern_gen (
 );
 
     // random number
-    logic [7:0] lfsr;
+    logic [31:0] lfsr;
     
     always_ff @(posedge clk or posedge rst) begin
         if (rst) 
-            lfsr <= 8'hAA; // start value
+            lfsr <= 32'hACE1; // Стартовое значение (любое, кроме нуля)
         else 
-            lfsr <= {lfsr[6:0], lfsr[7] ^ lfsr[5] ^ lfsr[4] ^ lfsr[3]}; 
+            lfsr <= {lfsr[30:0], lfsr[31] ^ lfsr[21] ^ lfsr[1] ^ lfsr[0]} ^ {28'b0, keys};
     end
 
 
@@ -41,11 +41,13 @@ module pattern_gen (
     logic [10:0] REC_Y_END;
     logic [10:0] block_speed;
     logic [10:0] bx [0:3];
-	 logic [10:0] base_speed;
-	 logic [5:0]  spawn_interval;
+	logic [10:0] base_speed;
+	logic [5:0]  spawn_interval;
+	 
+	 logic [3:0] lane_hit_reg; // Регистр задержки попадания для счетчиков
 	 
     always_comb begin
-		  block_speed = base_speed + {9'd0, speed_mode}; 
+		  
         case (mode)
             2'b00: begin // 640x480 @ 60Hz
                 h_res       = 11'd640;  v_res       = 11'd480;
@@ -54,6 +56,7 @@ module pattern_gen (
                 HIT_Y_START = 11'd400;   HIT_Y_END   = 11'd419;
                 REC_Y_START = 11'd420;   REC_Y_END   = 11'd479;
                 base_speed  = 11'd2;
+					 block_speed = base_speed + {9'd0, speed_mode}; 
                 bx[0] = 11'd215; bx[1] = 11'd268; bx[2] = 11'd321; bx[3] = 11'd374;
             end
             2'b01: begin // 800x600 @ 60Hz
@@ -63,6 +66,7 @@ module pattern_gen (
                 HIT_Y_START = 11'd500;   HIT_Y_END   = 11'd525;
                 REC_Y_START = 11'd526;   REC_Y_END   = 11'd599;
                 base_speed  = 11'd2;
+					 block_speed = base_speed + ({9'd0, speed_mode} << 1);
                 bx[0] = 11'd280; bx[1] = 11'd341; bx[2] = 11'd402; bx[3] = 11'd463;
             end
             2'b10: begin // 1024x768 @ 60Hz
@@ -72,6 +76,7 @@ module pattern_gen (
                 HIT_Y_START = 11'd650;   HIT_Y_END   = 11'd680;
                 REC_Y_START = 11'd681;   REC_Y_END   = 11'd767;
                 base_speed  = 11'd2;
+					 block_speed = base_speed + ({9'd0, speed_mode} << 1)+ {9'd0, speed_mode};
                 bx[0] = 11'd362; bx[1] = 11'd438; bx[2] = 11'd514; bx[3] = 11'd590;
             end
             default: begin // ������ 640x480
@@ -81,6 +86,7 @@ module pattern_gen (
                 HIT_Y_START = 11'd400;   HIT_Y_END   = 11'd419;
                 REC_Y_START = 11'd420;   REC_Y_END   = 11'd479;
                 base_speed  = 11'd2;
+					 block_speed = base_speed + {9'd0, speed_mode};
                 bx[0] = 11'd215; bx[1] = 11'd268; bx[2] = 11'd321; bx[3] = 11'd374;
             end
         endcase
@@ -99,8 +105,8 @@ module pattern_gen (
     assign frame_tick = (x == h_res - 11'd1 && y == v_res - 11'd1);
 	 
 	 
-	 localparam MAX_BLOCKS   = 10; //max quantity of blocks on screen
-	 logic [10:0] block_y[0:MAX_BLOCKS-1]; // height of every block
+	localparam MAX_BLOCKS   = 13; //max quantity of blocks on screen
+	logic [10:0] block_y[0:MAX_BLOCKS-1]; // height of every block
     logic [1:0] block_lane[0:MAX_BLOCKS-1]; // in what column
     logic       block_visible [0:MAX_BLOCKS-1]; // 1 - block in process to catch, 0 - caught/free
 	 
@@ -123,7 +129,7 @@ module pattern_gen (
     end
 
 
-	 logic [3:0] keys_pulse;
+	logic [3:0] keys_pulse;
     logic [3:0] keys_flipped;
 
     assign keys_flipped[0] = keys[3]; // ������� ����� ��� (������ BTN[3]) -> 0-� ��� ������
@@ -131,29 +137,29 @@ module pattern_gen (
     assign keys_flipped[2] = keys[1]; // ������ ��� -> 2-� ���
     assign keys_flipped[3] = keys[0]; // ������� ������ ��� (������ BTN[0]) -> 3-� ��� ������
 
-	 logic [3:0] combo_ones;
+	logic [3:0] combo_ones;
     logic [3:0] combo_tens;
     logic [3:0] combo_hundreds;
-	 logic [3:0] top_ones, top_tens, top_hundreds;
+	logic [3:0] top_ones, top_tens, top_hundreds;
 	 
-	 logic is_new_record;
+	logic is_new_record;
     assign is_new_record = (combo_ones == top_ones) && (combo_tens == top_tens) && (combo_hundreds == top_hundreds);
 	 
-	 assign keys_pulse = keys & ~keys_prev;
+	assign keys_pulse = keys & ~keys_prev;
     always_ff @(posedge clk or posedge rst) begin
         if (rst) begin
-				combo_ones     <= 4'd0;
+            combo_ones     <= 4'd0;
             combo_tens     <= 4'd0;
             combo_hundreds <= 4'd0;
-				top_ones			<= 4'd0;
-				top_tens			<= 4'd0;
-				top_hundreds	<= 4'd0;
-		  for (int i=0; i < MAX_BLOCKS; i++) begin
-			   block_visible[i] <= 1'b0;
-			   block_y[i]       <= 11'd0;
-			   block_lane[i]    <= 2'd0;
-        end
-		  for (int i=0; i < 4; i++) flash[i] <= 5'd0;
+            top_ones       <= 4'd0;
+            top_tens       <= 4'd0;
+            top_hundreds   <= 4'd0;
+            for (int i=0; i < MAX_BLOCKS; i++) begin
+                block_visible[i] <= 1'b0;
+                block_y[i]       <= 11'd0;
+                block_lane[i]    <= 2'd0;
+            end
+            for (int i=0; i < 4; i++) flash[i] <= 5'd0;
             spawn_timer <= 0;
             keys_prev   <= 4'd0;
         end else begin
@@ -170,13 +176,40 @@ module pattern_gen (
                         block_y[free_idx]       <= 11'd0;
                         block_lane[free_idx]    <= lfsr[1:0]; // random column for new block
                     end
+                    
+                    if (lfsr[8] && lfsr[7] && lfsr[6] && has_free) begin //условие для генерации двух нот одновременно(шанс 12%)
+                        
+                        logic [3:0] second_free;
+                        logic found_second;
+                        
+                        // Инициализируем переменные поиска по умолчанию
+                        second_free  = 4'd0;
+                        found_second = 1'b0;
+                        
+                        // Ищем вторую свободную ячейку в массиве
+                        for (int i = 0; i < MAX_BLOCKS; i++) begin
+                            // Если ячейка свободна И это не та ячейка, которую мы заняли под первую ноту
+                            if (!block_visible[i] && i[3:0] != free_idx) begin
+                                second_free  = i[3:0];
+                                found_second = 1'b1;
+                            end
+                        end
+                        
+                        // Если нашли второе свободное место — спавним второй блок
+                        if (found_second) begin
+                            block_visible[second_free] <= 1'b1;
+                            block_y[second_free]       <= 11'd0;
+                            // Сдвигаем дорожку второй ноты на соседнюю с помощью операции ^ 2'b01
+                            block_lane[second_free]    <= (lfsr[10:9] == lfsr[1:0]) ? (lfsr[1:0] ^ 2'b01) : lfsr[10:9]; 
+                        end
+                    end
                 end
                     
                 for (int i=0; i < MAX_BLOCKS; i++) begin
                     if (block_visible[i]) begin
                         if (block_y[i] + BLOCK_HEIGHT >= v_res) begin
                             block_visible[i] <= 1'b0; // block is out of screen
-									 combo_ones <= 4'd0;
+                            combo_ones <= 4'd0;
                             combo_tens <= 4'd0;
                             combo_hundreds <= 4'd0;
                         end else 
@@ -184,8 +217,10 @@ module pattern_gen (
                     end
                 end
             end
-					 
-			for (int i=0; i < MAX_BLOCKS; i++) begin
+            
+            lane_hit_reg <= 4'b0000;    
+            //истребление блоков
+            for (int i=0; i < MAX_BLOCKS; i++) begin
                 if (block_visible[i]) begin
                     // if we have press in current lane and block in hit zone by Y - catch block
                     if (keys_pulse[block_lane[i]] && 
@@ -193,29 +228,34 @@ module pattern_gen (
                        (block_y[i] <= HIT_Y_END)) begin
                         
                         block_visible[i]     <= 1'b0;  // hide block (caught)
-                        flash[block_lane[i]] <= 5'd31; 
-								
-								if (combo_ones == 9) begin
-                            combo_ones <= 0;
-                            if (is_new_record) top_ones <= 0; 
+                        lane_hit_reg[block_lane[i]] <= 1'b1; //save in what colomn we caught
+                    end
+                end
+            end 
+            //запуск анимации и расчет комбо на следующем такте
+            for (int j = 0; j < 4; j++) begin   
+                if (lane_hit_reg[j]) begin  
+                    flash[j] <= 5'd31;      
+                        
+                    if (combo_ones == 9) begin
+                        combo_ones <= 0;
+                        if (is_new_record) top_ones <= 0; 
 
-                            if (combo_tens == 9) begin
-                                combo_tens <= 0;
-                                if (is_new_record) top_tens <= 0;
-                                
-                                if (combo_hundreds < 9) begin
-                                    combo_hundreds <= combo_hundreds + 1;
-                                    if (is_new_record) top_hundreds <= top_hundreds + 1;
-                                end
-                            end else begin
-                                combo_tens <= combo_tens + 1;
-                                if (is_new_record) top_tens <= top_tens + 1;
+                        if (combo_tens == 9) begin
+                            combo_tens <= 0;
+                            if (is_new_record) top_tens <= 0;
+                            
+                            if (combo_hundreds < 9) begin
+                                combo_hundreds <= combo_hundreds + 1;
+                                if (is_new_record) top_hundreds <= top_hundreds + 1;
                             end
                         end else begin
-                            combo_ones <= combo_ones + 1;
-                            if (is_new_record) top_ones <= top_ones + 1; // Если идем на рекорд, обновляем
+                            combo_tens <= combo_tens + 1;
+                            if (is_new_record) top_tens <= top_tens + 1;
                         end
-								
+                    end else begin
+                        combo_ones <= combo_ones + 1;
+                        if (is_new_record) top_ones <= top_ones + 1; // Если идем на рекорд, обновляем
                     end
                 end
             end
