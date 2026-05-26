@@ -6,7 +6,11 @@ module sprite_combo (
     input  logic [3:0]  combo_hundreds,  
     input  logic [3:0]  top_ones,       
     input  logic [3:0]  top_tens,        
-    input  logic [3:0]  top_hundreds,    
+    input  logic [3:0]  top_hundreds,
+    input  logic [1:0]  speed_mode,
+    input  logic [1:0]  spawn_mode,
+    output logic        speed_pixel,
+    output logic        spawn_pixel,   
     output logic [1:0]  text_pixel       // 0=пусто, 1=комбо, 2= топ скор
 );
 
@@ -46,7 +50,7 @@ module sprite_combo (
         cur_digit  = 4'd0;
         char_x     = 3'd0;
         char_y     = 4'd0;
-		  is_top_score_zone = 1'b0;
+		is_top_score_zone = 1'b0;
 
         //current combo
         if (y >= START_Y && y < START_Y + 11'd64) begin // Зона по Y (высота шрифта 16 пикселей * 4 = 64)
@@ -97,4 +101,70 @@ module sprite_combo (
                 text_pixel = 2'd1; //Комбо 
         end
     end
+
+    localparam Y_SPEED = 11'd230; // Располагаем под TOP SCORE (180 + 32)
+    localparam Y_SPAWN = 11'd280; // Отступ 50 пикселей вниз
+
+    logic [7:0] icon_rom [0:1][0:15];
+    initial begin
+        // 0: Иконка "Молния" (Скорость)
+        icon_rom[0] = '{
+            8'h00, 8'h00, 8'h00,
+            8'h0C, 8'h18, 8'h30, 8'h60, 8'hFC, 
+            8'h18, 8'h30, 8'h60, 8'hC0, 8'h80, 
+            8'h00, 8'h00, 8'h00
+        };
+        // 1: Иконка "Блоки" (Кучность/Плотность)
+        icon_rom[1] = '{
+            8'h00, 8'h00, 8'h00,
+            8'h66, 8'h66, 8'h00, 8'h18, 8'h18, 
+            8'h00, 8'h66, 8'h66, 8'h00, 8'h00, 
+            8'h00, 8'h00, 8'h00
+        };
+    end
+
+    logic draw_speed_icon, draw_spawn_icon;
+    logic draw_speed_bar, draw_spawn_bar;
+    logic [2:0] icon_char_x;
+    logic [3:0] icon_char_y;
+
+    always_comb begin
+        speed_pixel     = 1'b0;
+        spawn_pixel     = 1'b0;
+        draw_speed_icon = 1'b0;
+        draw_spawn_icon = 1'b0;
+        draw_speed_bar  = 1'b0;
+        draw_spawn_bar  = 1'b0;
+        icon_char_x     = 3'd0;
+        icon_char_y     = 4'd0;
+
+        // START_X берется из существующего localparam START_X выше
+        
+        if (y >= Y_SPEED && y < Y_SPEED + 11'd32) begin
+            if (x >= START_X && x < START_X + 11'd16) begin
+                icon_char_y = (y - Y_SPEED) >> 1;
+                icon_char_x = 3'd7 - ((x - START_X) >> 1);
+                draw_speed_icon = icon_rom[0][icon_char_y][icon_char_x];
+            end
+            else if (x >= START_X + 11'd24 && x < START_X + 11'd32) draw_speed_bar = 1'b1;                  
+            else if (x >= START_X + 11'd36 && x < START_X + 11'd44) draw_speed_bar = (speed_mode >= 2'd1);  
+            else if (x >= START_X + 11'd48 && x < START_X + 11'd56) draw_speed_bar = (speed_mode >= 2'd2);  
+            else if (x >= START_X + 11'd60 && x < START_X + 11'd68) draw_speed_bar = (speed_mode == 2'd3);  
+        end
+        else if (y >= Y_SPAWN && y < Y_SPAWN + 11'd32) begin
+            if (x >= START_X && x < START_X + 11'd16) begin
+                icon_char_y = (y - Y_SPAWN) >> 1;
+                icon_char_x = 3'd7 - ((x - START_X) >> 1);
+                draw_spawn_icon = icon_rom[1][icon_char_y][icon_char_x];
+            end
+            else if (x >= START_X + 11'd24 && x < START_X + 11'd32) draw_spawn_bar = 1'b1;
+            else if (x >= START_X + 11'd36 && x < START_X + 11'd44) draw_spawn_bar = (spawn_mode >= 2'd1);
+            else if (x >= START_X + 11'd48 && x < START_X + 11'd56) draw_spawn_bar = (spawn_mode >= 2'd2);
+            else if (x >= START_X + 11'd60 && x < START_X + 11'd68) draw_spawn_bar = (spawn_mode == 2'd3);
+        end
+
+        speed_pixel = draw_speed_icon | draw_speed_bar;
+        spawn_pixel = draw_spawn_icon | draw_spawn_bar;
+    end
+
 endmodule

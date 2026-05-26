@@ -340,6 +340,8 @@ module pattern_gen (
 ////////////////////////////////////////////////////////////
 //combo draw
     logic [1:0] text_pixel_type;
+    logic diff_speed_pixel; 
+    logic diff_spawn_pixel;
 
     sprite_combo text_engine (
         .x              (x),
@@ -350,6 +352,10 @@ module pattern_gen (
         .top_ones       (top_ones),         
         .top_tens       (top_tens),
         .top_hundreds   (top_hundreds),
+        .speed_mode     (speed_mode),
+        .spawn_mode     (spawn_mode),
+        .speed_pixel    (diff_speed_pixel),
+        .spawn_pixel    (diff_spawn_pixel),
         .text_pixel     (text_pixel_type) 
     );
 
@@ -395,7 +401,13 @@ module pattern_gen (
 					 
 				else if (text_pixel_type != 2'd0)
                 next_rgb_out  = 24'h00FFFF;
-					 
+				
+                else if (diff_speed_pixel)
+                next_rgb_out  = 24'hFFFF00; // желтый цвет для индикатора скорости
+                
+                else if (diff_spawn_pixel) // зеленый для кучности
+                next_rgb_out  = 24'h00FF00;
+
 				else begin
                 logic [7:0] base_r, base_g, base_b;
                 logic [8:0] sum_r, sum_g, sum_b;
