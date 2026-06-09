@@ -43,27 +43,33 @@ module hdmi_top (
     logic clk_pixel, soft_reset;
     logic [3:0] keys_for_game;
     logic [1:0] mode_final, speed_final, diff_final;
-	 
-	 // Активный высокий уровень сброса (кнопки на плате прижаты к 1)
+
+    logic rst_global;
+    assign rst_global = ~KEY[0];
+
+    logic rst_game;
+    assign rst_game = ~KEY[0] | soft_reset;
+
+
 	 assign rst = ~KEY[0] | soft_reset;
 
     // Диагностика через светодиоды
-    assign LED[0] = pll_locked;   // Горит, если PLL залочился и работает стабильно
-    assign LED[1] = ready;        // Горит, если чип HDMI успешно настроен по I2C
-    assign LED[3:2] = mode;      // Остальные выключаем
+    assign LED[0] = pll_locked;        // Горит, если PLL залочился и работает стабильно
+    assign LED[1] = ready;             // Горит, если чип HDMI успешно настроен по I2C
+    assign LED[3:2] = mode_final;      // Остальные выключаем
 
     // Генерация пиксельного клока 25.177 МГц из опорных 50 МГц
     p_pll pll_inst (
         .refclk   (FPGA_CLK1_50),
-        .rst      (rst), 
+        .rst      (rst_global), 
         .outclk_0 (clk_25),
-		  .outclk_1 (clk_40),
-		  .outclk_2 (clk_65),
+		.outclk_1 (clk_40),
+		.outclk_2 (clk_65),
         .locked   (pll_locked)   
     );
 		
     always_comb begin
-        case (mode)
+        case (mode_final)
             2'b00:   clk_pixel = clk_25;
             2'b01:   clk_pixel = clk_40;
             2'b10:   clk_pixel = clk_65;
@@ -80,7 +86,7 @@ module hdmi_top (
     // Конфигуратор чипа ADV7513
     hdmi_config cfg (
         .clk      (FPGA_CLK1_50),
-        .rst      (rst),
+        .rst      (rst_global),
         .i2c_sclk (HDMI_I2C_SCL),
         .i2c_sdat (HDMI_I2C_SDA),
         .ready    (ready)        
@@ -106,7 +112,7 @@ module hdmi_top (
     // Модуль связи с ПК по UART и обработки нажатий
     uart_display uart_inst (
         .clk          (FPGA_CLK1_50),
-        .reset        (rst),                // сброс всей системы
+        .reset        (rst_global),                // сброс всей системы
         .rx           (uart_rx),
         .tx           (uart_tx),
         .but_1        (~BTN[3]),
@@ -132,7 +138,7 @@ module hdmi_top (
     // Игровая логика генерации графики (ядро игры)
 	 pattern_gen game_logic (
         .clk        (clk_pixel),
-        .rst        (rst),
+        .rst        (rst_game),
         .mode       (mode_final),
         .speed_mode (speed_final),
         .spawn_mode (diff_final),

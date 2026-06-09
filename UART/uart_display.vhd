@@ -75,11 +75,16 @@ architecture behavioral of uart_display is
     constant KEY_MINUS : std_logic_vector(7 downto 0) := x"2D";
     constant KEY_ENTER : std_logic_vector(7 downto 0) := x"0D";
 
-    -- Регистры настроек (изменяемые по UART)
+    -- Регистры настроек (изменяемые по UART и физически)
     signal mode_reg      : std_logic_vector(1 downto 0);
     signal speed_reg     : std_logic_vector(1 downto 0);
     signal diff_reg      : std_logic_vector(1 downto 0);
     signal reset_int     : std_logic;
+    
+    -- НОВОЕ: Для отслеживания переключения физических тумблеров (детектор фронта)
+    signal mode_sw_prev  : std_logic_vector(1 downto 0);
+    signal speed_sw_prev : std_logic_vector(1 downto 0);
+    signal diff_sw_prev  : std_logic_vector(1 downto 0);
 
     -- Сообщения для отправки
     type msg_type_t is (MSG_NONE, MSG_A, MSG_S, MSG_D, MSG_F,
@@ -234,6 +239,12 @@ begin
             mode_reg   <= mode_sw;
             speed_reg  <= speed_mode_sw;
             diff_reg   <= diff_mode_sw;
+            
+            -- Инициализация истории тумблеров
+            mode_sw_prev  <= mode_sw;
+            speed_sw_prev <= speed_mode_sw;
+            diff_sw_prev  <= diff_mode_sw;
+            
             reset_int  <= '0';
             current_msg <= MSG_NONE;
             char_index <= 0;
@@ -245,25 +256,57 @@ begin
             reset_int <= '0';
             tx_start <= '0';
 
+            -- Постоянно обновляем историю тумблеров (чтобы ловить переключения на лету)
+            mode_sw_prev  <= mode_sw;
+            speed_sw_prev <= speed_mode_sw;
+            diff_sw_prev  <= diff_mode_sw;
+
             case state is
                 when IDLE =>
-                    -- Обработка изменения режимов по UART-импульсам
-                    if inc_mode = '1' then
+                
+                    -- 1. СНАЧАЛА ПРОВЕРЯЕМ ФИЗИЧЕСКИЕ ТУМБЛЕРЫ
+                    if mode_sw /= mode_sw_prev then
+                        mode_reg <= mode_sw;
+                        current_msg <= MSG_MODE;
+                        msg_length <= 8;
+                        char_index <= 0;
+                        state <= LOAD_CHAR;
+                    elsif speed_mode_sw /= speed_sw_prev then
+                        speed_reg <= speed_mode_sw;
+                        current_msg <= MSG_SPEED;
+                        msg_length <= 9;
+                        char_index <= 0;
+                        state <= LOAD_CHAR;
+                    elsif diff_mode_sw /= diff_sw_prev then
+                        diff_reg <= diff_mode_sw;
+                        current_msg <= MSG_DIFF;
+                        msg_length <= 7;
+                        char_index <= 0;
+                        state <= LOAD_CHAR;
+
+                    -- 2. ЗАТЕМ ПРОВЕРЯЕМ КОМАНДЫ С UART
+                    elsif inc_mode = '1' then
                         new_mode := unsigned(mode_reg) + 1;
+                        -- Защита от несуществующих режимов (их всего 3: 00, 01, 10).
+                        if new_mode > 2 then new_mode := "00"; end if;
                         mode_reg <= std_logic_vector(new_mode);
                         current_msg <= MSG_MODE;
-                        msg_length <= 8;    -- "mode=X" + CRLF (X - цифра)
+                        msg_length <= 8;    -- "mode=X" + CRLF
                         char_index <= 0;
                         state <= LOAD_CHAR;
                     elsif dec_mode = '1' then
                         new_mode := unsigned(mode_reg) - 1;
+                        -- При 0 - 1 получится 3 ("11"). Возвращаем в границу доступных режимов (2)
+                        if new_mode > 2 then new_mode := "10"; end if;
                         mode_reg <= std_logic_vector(new_mode);
                         current_msg <= MSG_MODE;
                         msg_length <= 8;
                         char_index <= 0;
                         state <= LOAD_CHAR;
+                        
                     elsif inc_speed = '1' then
                         new_speed := unsigned(speed_reg) + 1;
+                        -- У скорости 4 режима: 00, 01, 10, 11, защита не нужна, само зациклится в 00
                         speed_reg <= std_logic_vector(new_speed);
                         current_msg <= MSG_SPEED;
                         msg_length <= 9;    -- "speed=X" + CRLF
@@ -276,6 +319,7 @@ begin
                         msg_length <= 9;
                         char_index <= 0;
                         state <= LOAD_CHAR;
+                        
                     elsif inc_diff = '1' then
                         new_diff := unsigned(diff_reg) + 1;
                         diff_reg <= std_logic_vector(new_diff);
@@ -290,12 +334,14 @@ begin
                         msg_length <= 7;
                         char_index <= 0;
                         state <= LOAD_CHAR;
+                        
                     elsif cmd_reset = '1' then
                         reset_int <= '1';
                         current_msg <= MSG_RESET;
                         msg_length <= 7;    -- "reset" + CRLF
                         char_index <= 0;
                         state <= LOAD_CHAR;
+                        
                     -- Нажатия игровых клавиш (UART press)
                     elsif press_a = '1' and uart_out_1 = '0' then
                         current_msg <= MSG_A;
@@ -317,6 +363,7 @@ begin
                         msg_length <= 14;
                         char_index <= 0;
                         state <= LOAD_CHAR;
+                        
                     -- Физические кнопки (фронты)
                     elsif but1_sync = '1' and but1_prev = '0' then
                         current_msg <= MSG_A;
