@@ -2,8 +2,8 @@ module pattern_gen (
     input  logic clk,       // clk from pll
     input  logic rst,       
     input  logic [1:0] mode, // ������� ����� ����������
-	 input  logic [1:0] speed_mode,
-	 input  logic [1:0] spawn_mode,
+	input  logic [1:0] speed_mode,
+	input  logic [1:0] spawn_mode,
     input  logic [10:0] x,   // current pos X (�� vga_generator)
     input  logic [10:0] y,   // current pos Y (�� vga_generator)
     input  logic de,        // Data Enable
@@ -342,8 +342,10 @@ module pattern_gen (
     logic [1:0] text_pixel_type;
     logic diff_speed_pixel; 
     logic diff_spawn_pixel;
+    logic diff_mode_pixel;
 
     sprite_combo text_engine (
+        .clk            (clk),
         .x              (x),
         .y              (y),
         .combo_ones     (combo_ones),
@@ -354,8 +356,10 @@ module pattern_gen (
         .top_hundreds   (top_hundreds),
         .speed_mode     (speed_mode),
         .spawn_mode     (spawn_mode),
+        .mode           (mode),
         .speed_pixel    (diff_speed_pixel),
         .spawn_pixel    (diff_spawn_pixel),
+        .mode_pixel     (diff_mode_pixel),
         .text_pixel     (text_pixel_type) 
     );
 
@@ -407,6 +411,9 @@ module pattern_gen (
                 
                 else if (diff_spawn_pixel) // зеленый для кучности
                 next_rgb_out  = 24'h00FF00;
+
+                else if (diff_mode_pixel)   
+                next_rgb_out  = 24'hFF00FF; //пурпурный для отображения разрешения
 
 				else begin
                 logic [7:0] base_r, base_g, base_b;

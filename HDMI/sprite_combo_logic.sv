@@ -1,4 +1,5 @@
 module sprite_combo (
+    input  logic        clk,
     input  logic [10:0] x,            
     input  logic [10:0] y,             
     input  logic [3:0]  combo_ones,     
@@ -9,162 +10,140 @@ module sprite_combo (
     input  logic [3:0]  top_hundreds,
     input  logic [1:0]  speed_mode,
     input  logic [1:0]  spawn_mode,
+    input  logic [1:0]  mode,            // разрешения экрана
     output logic        speed_pixel,
     output logic        spawn_pixel,   
+    output logic        mode_pixel,      
     output logic [1:0]  text_pixel       // 0=пусто, 1=комбо, 2= топ скор
 );
 
-    // font (8x16 пикселей для каждой цифры
-    logic [7:0] font_rom [0:12][0:15];
-    initial begin
-        font_rom[0] = '{8'h3C, 8'h66, 8'hC3, 8'hC3, 8'hC3, 8'hC3, 8'hC3, 8'hC3, 8'hC3, 8'hC3, 8'hC3, 8'hC3, 8'hC3, 8'h66, 8'h3C, 8'h00}; //0
-        font_rom[1] = '{8'h18, 8'h38, 8'h78, 8'h18, 8'h18, 8'h18, 8'h18, 8'h18, 8'h18, 8'h18, 8'h18, 8'h18, 8'h18, 8'h18, 8'h7E, 8'h00}; //1
-        font_rom[2] = '{8'h3C, 8'h66, 8'hC3, 8'hC3, 8'h03, 8'h06, 8'h0C, 8'h18, 8'h30, 8'h60, 8'hC0, 8'hC0, 8'hC0, 8'hC0, 8'hFF, 8'h00}; //2
-        font_rom[3] = '{8'h3C, 8'h66, 8'hC3, 8'h03, 8'h03, 8'h03, 8'h1E, 8'h03, 8'h03, 8'h03, 8'h03, 8'h03, 8'hC3, 8'h66, 8'h3C, 8'h00}; //3
-        font_rom[4] = '{8'h0C, 8'h1C, 8'h3C, 8'h6C, 8'hCC, 8'hCC, 8'hCC, 8'hFF, 8'h0C, 8'h0C, 8'h0C, 8'h0C, 8'h0C, 8'h0C, 8'h0C, 8'h00}; //4
-        font_rom[5] = '{8'hFF, 8'hC0, 8'hC0, 8'hC0, 8'hC0, 8'hFC, 8'h06, 8'h03, 8'h03, 8'h03, 8'h03, 8'h03, 8'hC3, 8'h66, 8'h3C, 8'h00}; //5
-        font_rom[6] = '{8'h3C, 8'h66, 8'hC3, 8'hC0, 8'hC0, 8'hC0, 8'hFC, 8'hC6, 8'hC3, 8'hC3, 8'hC3, 8'hC3, 8'hC3, 8'h66, 8'h3C, 8'h00}; //6
-        font_rom[7] = '{8'hFF, 8'hC3, 8'h03, 8'h06, 8'h06, 8'h0C, 8'h0C, 8'h18, 8'h18, 8'h30, 8'h30, 8'h60, 8'h60, 8'hC0, 8'hC0, 8'h00}; //7
-        font_rom[8] = '{8'h3C, 8'h66, 8'hC3, 8'hC3, 8'hC3, 8'h66, 8'h3C, 8'h66, 8'hC3, 8'hC3, 8'hC3, 8'hC3, 8'hC3, 8'h66, 8'h3C, 8'h00}; //8
-        font_rom[9] = '{8'h3C, 8'h66, 8'hC3, 8'hC3, 8'hC3, 8'hC3, 8'hC3, 8'h63, 8'h3F, 8'h03, 8'h03, 8'h03, 8'hC3, 8'h66, 8'h3C, 8'h00}; //9
-		  
-		  font_rom[10] = '{8'hFF, 8'hFF, 8'h18, 8'h18, 8'h18, 8'h18, 8'h18, 8'h18, 8'h18, 8'h18, 8'h18, 8'h18, 8'h18, 8'h18, 8'h18, 8'h00}; //'T'
-        font_rom[11] = '{8'hFC, 8'hC6, 8'hC6, 8'hC6, 8'hC6, 8'hFC, 8'hC0, 8'hC0, 8'hC0, 8'hC0, 8'hC0, 8'hC0, 8'hC0, 8'hC0, 8'hC0, 8'h00}; //'P'
-        font_rom[12] = '{8'h00, 8'h00, 8'h00, 8'h18, 8'h18, 8'h00, 8'h00, 8'h00, 8'h00, 8'h18, 8'h18, 8'h00, 8'h00, 8'h00, 8'h00, 8'h00}; //':'
-    end
-
-	 // (Масштаб x4)
-    logic draw_any;
-    logic [3:0] cur_digit;
-    logic [2:0] char_x;
-    logic [3:0] char_y;
-	logic is_top_score_zone;
-    
-    // Базовые координаты вывода на экран
     localparam START_X = 11'd40;
     localparam START_Y = 11'd100;
-	localparam TOP_Y   = 11'd180;
+    localparam TOP_Y   = 11'd180;
+    localparam Y_SPEED = 11'd230;
+    localparam Y_SPAWN = 11'd280;
+    localparam Y_MODE  = 11'd330; // Отступ еще 50 пикселей вниз для монитора
+
+    logic [3:0] item_id;
+    logic [3:0] item_y;
+    logic [2:0] item_x;
+    
+    logic is_text_zone, is_top_zone, is_speed_icon_zone, is_spawn_icon_zone, is_mode_icon_zone;
+    logic draw_speed_bar_next, draw_spawn_bar_next, draw_mode_bar_next;
 
     always_comb begin
-        draw_any = 1'b0;
-        cur_digit  = 4'd0;
-        char_x     = 3'd0;
-        char_y     = 4'd0;
-		is_top_score_zone = 1'b0;
+        item_id             = 4'd0;
+        item_y              = 4'd0;
+        item_x              = 3'd0;
+        is_text_zone        = 1'b0;
+        is_top_zone         = 1'b0;
+        is_speed_icon_zone  = 1'b0;
+        is_spawn_icon_zone  = 1'b0;
+        is_mode_icon_zone   = 1'b0;
+        draw_speed_bar_next = 1'b0;
+        draw_spawn_bar_next = 1'b0;
+        draw_mode_bar_next  = 1'b0;
 
-        //current combo
-        if (y >= START_Y && y < START_Y + 11'd64) begin // Зона по Y (высота шрифта 16 пикселей * 4 = 64)
-            char_y = (y - START_Y) >> 2;       
-            if (x >= START_X && x < START_X + 11'd32) begin // Зона сотен (Ширина 8 пикс * 4 = 32)
-                draw_any = 1'b1;
-                cur_digit  = combo_hundreds;
-                char_x     = 3'd7 - ((x - START_X) >> 2);
-            end
-           
-            else if (x >= START_X + 11'd40 && x < START_X + 11'd72) begin  // Зона десятков (отступ 40 пикс)
-                draw_any = 1'b1;
-                cur_digit  = combo_tens;
-                char_x     = 3'd7 - ((x - (START_X + 11'd40)) >> 2);
-            end
-
-            else if (x >= START_X + 11'd80 && x < START_X + 11'd112) begin  // Зона единиц (отступ 80 пикс)
-                draw_any = 1'b1;
-                cur_digit  = combo_ones;
-                char_x     = 3'd7 - ((x - (START_X + 11'd80)) >> 2);
+        if (y >= START_Y && y < START_Y + 11'd64) begin 
+            item_y = (y - START_Y) >> 2;       
+            if (x >= START_X && x < START_X + 11'd32) begin 
+                is_text_zone = 1'b1; item_id = combo_hundreds; item_x = 3'd7 - ((x - START_X) >> 2);
+            end else if (x >= START_X + 11'd40 && x < START_X + 11'd72) begin  
+                is_text_zone = 1'b1; item_id = combo_tens; item_x = 3'd7 - ((x - (START_X + 11'd40)) >> 2);
+            end else if (x >= START_X + 11'd80 && x < START_X + 11'd112) begin 
+                is_text_zone = 1'b1; item_id = combo_ones; item_x = 3'd7 - ((x - (START_X + 11'd80)) >> 2);
             end
         end
-		  else if (y >= TOP_Y && y < TOP_Y + 11'd32) begin
-            char_y = (y - TOP_Y) >> 1; // Сдвиг на 1 = деление на 2
-            is_top_score_zone = 1'b1;
-            
-            // Ширина символа x2 = 16 пикселей. Шаг между буквами = 20 пикселей.
-            if      (x >= START_X + 0  && x < START_X + 16)  begin draw_any = 1; cur_digit = 4'd10;          char_x = 3'd7 - ((x - (START_X + 0)) >> 1);  end // T
-            else if (x >= START_X + 20 && x < START_X + 36)  begin draw_any = 1; cur_digit = 4'd0;           char_x = 3'd7 - ((x - (START_X + 20)) >> 1); end // O 
-            else if (x >= START_X + 40 && x < START_X + 56)  begin draw_any = 1; cur_digit = 4'd11;          char_x = 3'd7 - ((x - (START_X + 40)) >> 1); end // P
-            else if (x >= START_X + 60 && x < START_X + 76)  begin draw_any = 1; cur_digit = 4'd12;          char_x = 3'd7 - ((x - (START_X + 60)) >> 1); end // :
-            // Отступ пробела: 80-100 пустота
-            else if (x >= START_X + 100 && x < START_X + 116) begin draw_any = 1; cur_digit = top_hundreds; char_x = 3'd7 - ((x - (START_X + 100)) >> 1); end // Сотни
-            else if (x >= START_X + 120 && x < START_X + 136) begin draw_any = 1; cur_digit = top_tens;     char_x = 3'd7 - ((x - (START_X + 120)) >> 1); end // Десятки
-            else if (x >= START_X + 140 && x < START_X + 156) begin draw_any = 1; cur_digit = top_ones;     char_x = 3'd7 - ((x - (START_X + 140)) >> 1); end // Единицы
+        else if (y >= TOP_Y && y < TOP_Y + 11'd32) begin
+            item_y = (y - TOP_Y) >> 1; 
+            if      (x >= START_X + 0  && x < START_X + 16)  begin is_top_zone = 1; item_id = 4'd10;          item_x = 3'd7 - ((x - (START_X + 0)) >> 1);  end 
+            else if (x >= START_X + 20 && x < START_X + 36)  begin is_top_zone = 1; item_id = 4'd0;           item_x = 3'd7 - ((x - (START_X + 20)) >> 1); end  
+            else if (x >= START_X + 40 && x < START_X + 56)  begin is_top_zone = 1; item_id = 4'd11;          item_x = 3'd7 - ((x - (START_X + 40)) >> 1); end 
+            else if (x >= START_X + 60 && x < START_X + 76)  begin is_top_zone = 1; item_id = 4'd12;          item_x = 3'd7 - ((x - (START_X + 60)) >> 1); end 
+            else if (x >= START_X + 100 && x < START_X + 116) begin is_top_zone = 1; item_id = top_hundreds; item_x = 3'd7 - ((x - (START_X + 100)) >> 1); end 
+            else if (x >= START_X + 120 && x < START_X + 136) begin is_top_zone = 1; item_id = top_tens;     item_x = 3'd7 - ((x - (START_X + 120)) >> 1); end 
+            else if (x >= START_X + 140 && x < START_X + 156) begin is_top_zone = 1; item_id = top_ones;     item_x = 3'd7 - ((x - (START_X + 140)) >> 1); end 
         end
-    end
-
-    logic pixel_on;
-    assign pixel_on = draw_any ? font_rom[cur_digit][char_y][char_x] : 1'b0;
-
-    always_comb begin
-        text_pixel = 2'd0;
-        if (pixel_on) begin
-            if (is_top_score_zone) 
-                text_pixel = 2'd2; //Топ Скор
-            else if (combo_ones > 0 || combo_tens > 0 || combo_hundreds > 0) 
-                text_pixel = 2'd1; //Комбо 
-        end
-    end
-
-    localparam Y_SPEED = 11'd230; // Располагаем под TOP SCORE (180 + 32)
-    localparam Y_SPAWN = 11'd280; // Отступ 50 пикселей вниз
-
-    logic [7:0] icon_rom [0:1][0:15];
-    initial begin
-        // 0: Иконка "Молния" (Скорость)
-        icon_rom[0] = '{
-            8'h00, 8'h00, 8'h00,
-            8'h0C, 8'h18, 8'h30, 8'h60, 8'hFC, 
-            8'h18, 8'h30, 8'h60, 8'hC0, 8'h80, 
-            8'h00, 8'h00, 8'h00
-        };
-        // 1: Иконка "Блоки" (Кучность/Плотность)
-        icon_rom[1] = '{
-            8'h00, 8'h00, 8'h00,
-            8'h66, 8'h66, 8'h00, 8'h18, 8'h18, 
-            8'h00, 8'h66, 8'h66, 8'h00, 8'h00, 
-            8'h00, 8'h00, 8'h00
-        };
-    end
-
-    logic draw_speed_icon, draw_spawn_icon;
-    logic draw_speed_bar, draw_spawn_bar;
-    logic [2:0] icon_char_x;
-    logic [3:0] icon_char_y;
-
-    always_comb begin
-        speed_pixel     = 1'b0;
-        spawn_pixel     = 1'b0;
-        draw_speed_icon = 1'b0;
-        draw_spawn_icon = 1'b0;
-        draw_speed_bar  = 1'b0;
-        draw_spawn_bar  = 1'b0;
-        icon_char_x     = 3'd0;
-        icon_char_y     = 4'd0;
-
-        // START_X берется из существующего localparam START_X выше
-        
-        if (y >= Y_SPEED && y < Y_SPEED + 11'd32) begin
+        else if (y >= Y_SPEED && y < Y_SPEED + 11'd32) begin
             if (x >= START_X && x < START_X + 11'd16) begin
-                icon_char_y = (y - Y_SPEED) >> 1;
-                icon_char_x = 3'd7 - ((x - START_X) >> 1);
-                draw_speed_icon = icon_rom[0][icon_char_y][icon_char_x];
+                is_speed_icon_zone = 1'b1; item_id = 4'd13;
+                item_y = (y - Y_SPEED) >> 1; item_x = 3'd7 - ((x - START_X) >> 1);
             end
-            else if (x >= START_X + 11'd24 && x < START_X + 11'd32) draw_speed_bar = 1'b1;                  
-            else if (x >= START_X + 11'd36 && x < START_X + 11'd44) draw_speed_bar = (speed_mode >= 2'd1);  
-            else if (x >= START_X + 11'd48 && x < START_X + 11'd56) draw_speed_bar = (speed_mode >= 2'd2);  
-            else if (x >= START_X + 11'd60 && x < START_X + 11'd68) draw_speed_bar = (speed_mode == 2'd3);  
+            else if (x >= START_X + 11'd24 && x < START_X + 11'd32) draw_speed_bar_next = 1'b1;                  
+            else if (x >= START_X + 11'd36 && x < START_X + 11'd44) draw_speed_bar_next = (speed_mode >= 2'd1);  
+            else if (x >= START_X + 11'd48 && x < START_X + 11'd56) draw_speed_bar_next = (speed_mode >= 2'd2);  
+            else if (x >= START_X + 11'd60 && x < START_X + 11'd68) draw_speed_bar_next = (speed_mode == 2'd3);  
         end
         else if (y >= Y_SPAWN && y < Y_SPAWN + 11'd32) begin
             if (x >= START_X && x < START_X + 11'd16) begin
-                icon_char_y = (y - Y_SPAWN) >> 1;
-                icon_char_x = 3'd7 - ((x - START_X) >> 1);
-                draw_spawn_icon = icon_rom[1][icon_char_y][icon_char_x];
+                is_spawn_icon_zone = 1'b1; item_id = 4'd14;
+                item_y = (y - Y_SPAWN) >> 1; item_x = 3'd7 - ((x - START_X) >> 1);
             end
-            else if (x >= START_X + 11'd24 && x < START_X + 11'd32) draw_spawn_bar = 1'b1;
-            else if (x >= START_X + 11'd36 && x < START_X + 11'd44) draw_spawn_bar = (spawn_mode >= 2'd1);
-            else if (x >= START_X + 11'd48 && x < START_X + 11'd56) draw_spawn_bar = (spawn_mode >= 2'd2);
-            else if (x >= START_X + 11'd60 && x < START_X + 11'd68) draw_spawn_bar = (spawn_mode == 2'd3);
+            else if (x >= START_X + 11'd24 && x < START_X + 11'd32) draw_spawn_bar_next = 1'b1;
+            else if (x >= START_X + 11'd36 && x < START_X + 11'd44) draw_spawn_bar_next = (spawn_mode >= 2'd1);
+            else if (x >= START_X + 11'd48 && x < START_X + 11'd56) draw_spawn_bar_next = (spawn_mode >= 2'd2);
+            else if (x >= START_X + 11'd60 && x < START_X + 11'd68) draw_spawn_bar_next = (spawn_mode == 2'd3);
         end
+        // Индикатор Разрешения (Mode)
+        else if (y >= Y_MODE && y < Y_MODE + 11'd32) begin
+            if (x >= START_X && x < START_X + 11'd16) begin
+                is_mode_icon_zone = 1'b1; item_id = 4'd15; // Индекс 15 в MIF
+                item_y = (y - Y_MODE) >> 1; item_x = 3'd7 - ((x - START_X) >> 1);
+            end
+            else if (x >= START_X + 11'd24 && x < START_X + 11'd32) draw_mode_bar_next = 1'b1;
+            else if (x >= START_X + 11'd36 && x < START_X + 11'd44) draw_mode_bar_next = (mode >= 2'd1);
+            else if (x >= START_X + 11'd48 && x < START_X + 11'd56) draw_mode_bar_next = (mode >= 2'd2);
+        end
+    end
 
-        speed_pixel = draw_speed_icon | draw_speed_bar;
-        spawn_pixel = draw_spawn_icon | draw_spawn_bar;
+    logic [7:0] rom_addr;
+    logic [7:0] rom_data;
+    assign rom_addr = {item_id, item_y};
+
+    my_rom rom_inst (
+        .address (rom_addr),
+        .clock   (clk),
+        .q       (rom_data)
+    );
+
+    logic [2:0] item_x_reg;
+    logic is_text_reg, is_top_reg, is_speed_icon_reg, is_spawn_icon_reg, is_mode_icon_reg;
+    logic draw_speed_bar_reg, draw_spawn_bar_reg, draw_mode_bar_reg;
+
+    always_ff @(posedge clk) begin
+        item_x_reg         <= item_x;
+        is_text_reg        <= is_text_zone;
+        is_top_reg         <= is_top_zone;
+        is_speed_icon_reg  <= is_speed_icon_zone;
+        is_spawn_icon_reg  <= is_spawn_icon_zone;
+        is_mode_icon_reg   <= is_mode_icon_zone;     // Задержка флага монитора
+        draw_speed_bar_reg <= draw_speed_bar_next;
+        draw_spawn_bar_reg <= draw_spawn_bar_next;
+        draw_mode_bar_reg  <= draw_mode_bar_next;    // Задержка флага полосок монитора
+    end
+
+    logic pixel_on;
+    assign pixel_on = rom_data[item_x_reg];
+
+    always_comb begin
+        text_pixel  = 2'd0;
+        speed_pixel = draw_speed_bar_reg;
+        spawn_pixel = draw_spawn_bar_reg;
+        mode_pixel  = draw_mode_bar_reg;
+
+        if (pixel_on) begin
+            if (is_top_reg) begin
+                text_pixel = 2'd2;
+            end else if (is_text_reg) begin
+                if (combo_ones > 0 || combo_tens > 0 || combo_hundreds > 0) text_pixel = 2'd1;
+            end else if (is_speed_icon_reg) begin
+                speed_pixel = 1'b1;
+            end else if (is_spawn_icon_reg) begin
+                spawn_pixel = 1'b1;
+            end else if (is_mode_icon_reg) begin
+                mode_pixel = 1'b1; // Отрисовка иконки монитора
+            end
+        end
     end
 
 endmodule
