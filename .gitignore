@@ -6,7 +6,12 @@ output_files/
 simulation/
 hc_output/
 extr.py
+work/
+vsim.wlf
+osumania_nativelink_simulation.rpt
+modelsim.ini
 
+*.py
 *.qws
 *.bak
 *.txt

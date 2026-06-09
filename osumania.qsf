@@ -138,7 +138,7 @@ set_instance_assignment -name WEAK_PULL_UP_RESISTOR OFF -to mode[0]
 set_instance_assignment -name WEAK_PULL_UP_RESISTOR OFF -to mode[1]
 
 set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to HDMI_TX_D[*]
-set_global_assignment -name EDA_SIMULATION_TOOL "<None>"
+set_global_assignment -name EDA_SIMULATION_TOOL "ModelSim-Altera (SystemVerilog)"
 set_location_assignment PIN_Y16 -to BTN[3]
 set_location_assignment PIN_Y15 -to BTN[2]
 set_location_assignment PIN_P12 -to BTN[1]
@@ -173,4 +173,7 @@ set_instance_assignment -name IO_STANDARD "1.2 V" -to speed_mode[1]
 set_instance_assignment -name IO_STANDARD "1.2 V" -to diff_mode[1]
 set_instance_assignment -name IO_STANDARD "1.2 V" -to diff_mode[0]
 set_global_assignment -name QIP_FILE ip/rom/my_rom.qip
+set_global_assignment -name EDA_OUTPUT_DATA_FORMAT "SYSTEMVERILOG HDL" -section_id eda_simulation
+set_global_assignment -name VERILOG_TEST_BENCH_FILE testbenches/tb_pattern_gen.sv
+set_global_assignment -name VERILOG_TEST_BENCH_FILE testbenches/tb_vga_generator.sv
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top
