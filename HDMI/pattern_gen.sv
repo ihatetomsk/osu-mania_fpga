@@ -1,11 +1,11 @@
 module pattern_gen (
     input  logic clk,       // clk from pll
     input  logic rst,       
-    input  logic [1:0] mode, // ������� ����� ����������
+    input  logic [1:0] mode, //resolution
 	input  logic [1:0] speed_mode,
 	input  logic [1:0] spawn_mode,
-    input  logic [10:0] x,   // current pos X (�� vga_generator)
-    input  logic [10:0] y,   // current pos Y (�� vga_generator)
+    input  logic [10:0] x,   // current pos X ( vga_generator)
+    input  logic [10:0] y,   // current pos Y ( vga_generator)
     input  logic de,        // Data Enable
     input  logic[3:0] keys,
     output logic [7:0] r,   
@@ -28,8 +28,7 @@ module pattern_gen (
     logic frame_tick;
     // generate frame tick at the end of each frame (when we are at the last pixel)
 	 
-    // ------------------------------------------------------------
-    // �����-��������� ��������� ��������� � �������� ����
+
     // ------------------------------------------------------------
     logic [10:0] h_res, v_res;
     logic [10:0] game_left, game_right;
@@ -79,7 +78,7 @@ module pattern_gen (
 					 block_speed = base_speed + ({9'd0, speed_mode} << 1)+ {9'd0, speed_mode};
                 bx[0] = 11'd362; bx[1] = 11'd438; bx[2] = 11'd514; bx[3] = 11'd590;
             end
-            default: begin // ������ 640x480
+            default: begin //  640x480
                 h_res       = 11'd640;  v_res       = 11'd480;
                 game_left   = 11'd215;   game_right  = 11'd426;
                 BLOCK_WIDTH = 11'd52;    BLOCK_HEIGHT= 11'd13;
@@ -132,10 +131,10 @@ module pattern_gen (
 	logic [3:0] keys_pulse;
     logic [3:0] keys_flipped;
 
-    assign keys_flipped[0] = keys[3]; // ������� ����� ��� (������ BTN[3]) -> 0-� ��� ������
-    assign keys_flipped[1] = keys[2]; // ����� ��� -> 1-� ���
-    assign keys_flipped[2] = keys[1]; // ������ ��� -> 2-� ���
-    assign keys_flipped[3] = keys[0]; // ������� ������ ��� (������ BTN[0]) -> 3-� ��� ������
+    assign keys_flipped[0] = keys[3]; 
+    assign keys_flipped[1] = keys[2]; 
+    assign keys_flipped[2] = keys[1]; 
+    assign keys_flipped[3] = keys[0]; 
 
 	logic [3:0] combo_ones;
     logic [3:0] combo_tens;
@@ -302,16 +301,13 @@ module pattern_gen (
         dist_y    = 11'd0;
         intensity = 12'd0;
         
-        // ���� ������� � �������, ��� ���� ������� � �� � ������ ���� �� Y
+
         if (is_in_col && flash[cur_col] > 0 && y <= HIT_Y_END) begin
             
-            // ��������� �� 8 �������� ������� ����� �� 3 (<< 3) - ��� �������� ���������
             base_val = {5'b0, flash[cur_col]} << 3; 
             
-            // ��������� �� Y
             dist_y = HIT_Y_END - y;
             
-            // ��������� �� 2 �������� ������� ����� �� 1 (<< 1)
             // intensity = base_val - (dist_y * 2)
             intensity = $signed({2'b0, base_val}) - $signed({1'b0, dist_y, 1'b0});
             
