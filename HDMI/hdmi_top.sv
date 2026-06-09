@@ -30,9 +30,6 @@ module hdmi_top (
     logic ready;
     logic rst;
 
-    // Активный высокий уровень сброса (кнопки на плате прижаты к 1)
-    assign rst = ~KEY[0];
-
     // Удобная работа со встроенными кнопками (инверсия и разворот порядка)
     // logic [3:0] btn_active;
     // assign btn_active = ~BTN; 
@@ -43,26 +40,36 @@ module hdmi_top (
     assign btn_active[3] = ~BTN[0]; // Физическая правая кнопка (BTN[0]) -> в 3-й канал (буква 'f')
 
     // Сигналы от модуля uart_display к игровой логике
+    logic clk_pixel, soft_reset;
     logic [3:0] keys_for_game;
+    logic [1:0] mode_final, speed_final, diff_final;
+
+    logic rst_global;
+    assign rst_global = ~KEY[0];
+
+    logic rst_game;
+    assign rst_game = ~KEY[0] | soft_reset;
+
+
+	 assign rst = ~KEY[0] | soft_reset;
 
     // Диагностика через светодиоды
-    assign LED[0] = pll_locked;   // Горит, если PLL залочился и работает стабильно
-    assign LED[1] = ready;        // Горит, если чип HDMI успешно настроен по I2C
-    assign LED[3:2] = mode;      // Остальные выключаем
+    assign LED[0] = pll_locked;        // Горит, если PLL залочился и работает стабильно
+    assign LED[1] = ready;             // Горит, если чип HDMI успешно настроен по I2C
+    assign LED[3:2] = mode_final;      // Остальные выключаем
 
     // Генерация пиксельного клока 25.177 МГц из опорных 50 МГц
     p_pll pll_inst (
         .refclk   (FPGA_CLK1_50),
-        .rst      (rst), 
+        .rst      (rst_global), 
         .outclk_0 (clk_25),
-		  .outclk_1 (clk_40),
-		  .outclk_2 (clk_65),
+		.outclk_1 (clk_40),
+		.outclk_2 (clk_65),
         .locked   (pll_locked)   
     );
 		
-	logic clk_pixel;
     always_comb begin
-        case (mode)
+        case (mode_final)
             2'b00:   clk_pixel = clk_25;
             2'b01:   clk_pixel = clk_40;
             2'b10:   clk_pixel = clk_65;
@@ -79,7 +86,7 @@ module hdmi_top (
     // Конфигуратор чипа ADV7513
     hdmi_config cfg (
         .clk      (FPGA_CLK1_50),
-        .rst      (i2c_auto_rst),
+        .rst      (rst_global),
         .i2c_sclk (HDMI_I2C_SCL),
         .i2c_sdat (HDMI_I2C_SDA),
         .ready    (ready)        
@@ -94,7 +101,7 @@ module hdmi_top (
         .hsync (HDMI_TX_HS),
         .vsync (HDMI_TX_VS),
         .rst   (rst),
-        .mode  (mode),
+        .mode  (mode_final),
         .de    (vga_de),
         .x     (x),
         .y     (y)
@@ -104,34 +111,44 @@ module hdmi_top (
      
     // Модуль связи с ПК по UART и обработки нажатий
     uart_display uart_inst (
-        .clk        (FPGA_CLK1_50),   // 50 МГц для генерации частоты UART (Baud Rate)
-        .reset      (rst),            // Активный высокий сброс
-        .rx         (uart_rx),
-        .tx         (uart_tx),
-        .but_1      (btn_active[0]),  // Физическая кнопка 1 -> сообщение 'a' в консоль
-        .but_2      (btn_active[1]),  // Физическая кнопка 2 -> сообщение 's' в консоль
-        .but_3      (btn_active[2]),  // Физическая кнопка 3 -> сообщение 'd' в консоль
-        .but_4      (btn_active[3]),  // Физическая кнопка 4 -> сообщение 'f' in консоль
-        .but_1_out  (keys_for_game[0]),
-        .but_2_out  (keys_for_game[1]),
-        .but_3_out  (keys_for_game[2]),
-        .but_4_out  (keys_for_game[3])
+        .clk          (FPGA_CLK1_50),
+        .reset        (rst_global),                // сброс всей системы
+        .rx           (uart_rx),
+        .tx           (uart_tx),
+        .but_1        (~BTN[3]),
+        .but_2        (~BTN[2]),
+        .but_3        (~BTN[1]),
+        .but_4        (~BTN[0]),
+        .but_1_out    (keys_for_game[0]),
+        .but_2_out    (keys_for_game[1]),
+        .but_3_out    (keys_for_game[2]),
+        .but_4_out    (keys_for_game[3]),
+
+        .mode_sw      (mode),               // текущее состояние переключателей
+        .speed_mode_sw (speed_mode),
+        .diff_mode_sw  (diff_mode),
+
+        .mode_out     (mode_final),
+        .speed_mode_out (speed_final),
+        .diff_mode_out  (diff_final),
+
+        .reset_pulse  (soft_reset)          // импульс сброса от Enter
     );
      
     // Игровая логика генерации графики (ядро игры)
-    pattern_gen game_logic (
-        .clk   (clk_pixel),
-        .rst   (rst),
-        .mode  (mode),
-		  .speed_mode (speed_mode),
-		  .spawn_mode (diff_mode),
-        .x     (x),
-        .y     (y),
-        .de    (vga_de),
-        .keys  (btn_active), //пока убрал keys_for_game ведь проблема в том что оно на один такт подает значения и не детектит удержание
-        .r     (w_red),
-        .g     (w_green),
-        .b     (w_blue)
+	 pattern_gen game_logic (
+        .clk        (clk_pixel),
+        .rst        (rst_game),
+        .mode       (mode_final),
+        .speed_mode (speed_final),
+        .spawn_mode (diff_final),
+        .x          (x),
+        .y          (y),
+        .de         (vga_de),
+        .keys       (keys_for_game),
+        .r          (w_red),
+        .g          (w_green),
+        .b          (w_blue)
     );
 
 
