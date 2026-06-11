@@ -24,6 +24,7 @@ def key_to_code(key):
             keyboard.Key.left:  KEY_LEFT,
             keyboard.Key.right: KEY_RIGHT,
             keyboard.Key.enter: KEY_ENTER,
+            keyboard.Key.space: 0x20,  
         }
         if key in mapping:
             return mapping[key]

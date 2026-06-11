@@ -32,7 +32,9 @@ entity uart_display is
         diff_mode_out  : out std_logic_vector(1 downto 0);
 
         -- Импульс сброса (Enter)
-        reset_pulse   : out std_logic
+        reset_pulse   : out std_logic;
+        -- Импульс паузы
+        pause_pulse   : out std_logic
     );
 end uart_display;
 
@@ -81,10 +83,14 @@ architecture behavioral of uart_display is
     signal diff_reg      : std_logic_vector(1 downto 0);
     signal reset_int     : std_logic;
     
-    -- НОВОЕ: Для отслеживания переключения физических тумблеров (детектор фронта)
+    -- Для отслеживания переключения физических тумблеров (детектор фронта)
     signal mode_sw_prev  : std_logic_vector(1 downto 0);
     signal speed_sw_prev : std_logic_vector(1 downto 0);
     signal diff_sw_prev  : std_logic_vector(1 downto 0);
+
+    --для паузы
+    constant KEY_SPACE : std_logic_vector(7 downto 0) := x"20";
+    signal cmd_pause   : std_logic := '0';
 
     -- Сообщения для отправки
     type msg_type_t is (MSG_NONE, MSG_A, MSG_S, MSG_D, MSG_F,
@@ -175,6 +181,7 @@ begin
             inc_speed <= '0'; dec_speed <= '0';
             inc_diff <= '0'; dec_diff <= '0';
             cmd_reset <= '0';
+            cmd_pause <= '0';
 
             if rx_valid = '1' then
                 case pstate is
@@ -196,6 +203,7 @@ begin
                                 when KEY_PLUS => inc_mode <= '1';
                                 when KEY_MINUS=> dec_mode <= '1';
                                 when KEY_ENTER=> cmd_reset <= '1';
+                                when KEY_SPACE => cmd_pause <= '1';
                                 when others => null;
                             end case;
                         elsif rx_data = x"00" then   -- отпускание
@@ -236,9 +244,9 @@ begin
         variable new_diff : unsigned(1 downto 0);
     begin
         if reset = '1' then
-            mode_reg   <= mode_sw;
-            speed_reg  <= speed_mode_sw;
-            diff_reg   <= diff_mode_sw;
+            mode_reg   <= "00";
+            speed_reg  <= "01";
+            diff_reg   <= "01";
             
             -- Инициализация истории тумблеров
             mode_sw_prev  <= mode_sw;
@@ -544,5 +552,6 @@ begin
     speed_mode_out <= speed_reg;
     diff_mode_out  <= diff_reg;
     reset_pulse   <= reset_int;
+    pause_pulse <= cmd_pause;
 
 end behavioral;

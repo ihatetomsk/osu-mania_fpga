@@ -1,9 +1,9 @@
 module hdmi_top (
     input  logic        FPGA_CLK1_50, // Входной клок 50 МГц
     input  logic [0:0]  KEY,          // Кнопка сброса [0]
-	 input  logic [1:0]  mode, //display resolution
-	 input  logic [1:0]  speed_mode,
-	 input  logic [1:0]  diff_mode,
+	input  logic [1:0]  mode, //display resolution
+	input  logic [1:0]  speed_mode,
+	input  logic [1:0]  diff_mode,
 	 
     
     // I2C для настройки чипа передатчика
@@ -11,7 +11,7 @@ module hdmi_top (
     inout  wire         HDMI_I2C_SDA,
     
     // Интерфейс HDMI (Видео)
-	 input  logic        HDMI_TX_INT,  
+	input  logic        HDMI_TX_INT,  
     output logic        HDMI_TX_CLK,
     output logic        HDMI_TX_HS,
     output logic        HDMI_TX_VS,
@@ -40,7 +40,7 @@ module hdmi_top (
     assign btn_active[3] = ~BTN[0]; // Физическая правая кнопка (BTN[0]) -> в 3-й канал (буква 'f')
 
     // Сигналы от модуля uart_display к игровой логике
-    logic clk_pixel, soft_reset;
+    logic clk_pixel, soft_reset,soft_pause;
     logic [3:0] keys_for_game;
     logic [1:0] mode_final, speed_final, diff_final;
 
@@ -132,7 +132,8 @@ module hdmi_top (
         .speed_mode_out (speed_final),
         .diff_mode_out  (diff_final),
 
-        .reset_pulse  (soft_reset)          // импульс сброса от Enter
+        .reset_pulse  (soft_reset),          // импульс сброса от Enter
+        .pause_pulse  (soft_pause)
     );
      
     // Игровая логика генерации графики (ядро игры)
@@ -146,6 +147,7 @@ module hdmi_top (
         .y          (y),
         .de         (vga_de),
         .keys       (keys_for_game),
+        .pause_btn  (soft_pause),
         .r          (w_red),
         .g          (w_green),
         .b          (w_blue)
