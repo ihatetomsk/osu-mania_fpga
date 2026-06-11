@@ -216,15 +216,20 @@ module tb_pattern_gen();
 
 
         // Снятие с паузы
-        pause_btn = 1;
-        simulate_frames(2);
-        pause_btn = 0;
-        simulate_frames(2);
-        
-        if (dut.state !== 2'd1) begin
-            $fatal(1, "TEST 5 FAILED: Game did not return to PLAY after unpausing!");
-        end
-        $display("[OK] Test 5: Returned to PLAY state.");
+        @(posedge clk);          // Ждем положительного фронта тактового сигнала
+		  keys <= 4'b0001;         
+		 
+		  @(posedge clk);          
+		  keys <= 4'b0000;         // Отпускаем кнопку
+		 
+		  repeat(2) @(posedge clk); // Даем автомату 1-2 такта на обновление состояния (state <= next_state)
+
+			// Проверка
+		  if (dut.state == 2'b01) begin // Предполагая, что PLAY это 2'b01 (или используйте имя state_t::PLAY)
+			  $display("[OK] Test 5: Game successfully returned to PLAY state.");
+		  end else begin
+			  $fatal(1, "TEST 5 FAILED: Game did not return to PLAY after unpausing! Current state: %b", dut.state);
+		  end
 
 
         // Проверка механики урона 
