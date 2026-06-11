@@ -49,7 +49,7 @@ module vga_generator (
             h_cnt <= 0;
             v_cnt <= 0;
         end else if (mode_changed) begin
-            h_cnt <= 0;   // << сброс при смене разрешения
+            h_cnt <= 0;  
             v_cnt <= 0;
         end else begin
             if (h_cnt < h_total - 1) h_cnt <= h_cnt + 1;
